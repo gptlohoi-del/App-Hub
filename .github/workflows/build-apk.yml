@@ -44,6 +44,9 @@ jobs:
           npx cap add android
           npx cap sync android
 
+      - name: Install SmooDri Foreground Service and Picture-in-Picture
+        run: python3 scripts/install_smoodri_motion.py
+
       - name: Set Android versionCode and versionName
         run: |
           python3 - <<'PY'

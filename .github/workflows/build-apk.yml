@@ -11,6 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 50
     steps:
+      - name: Workflow version check (release-v3)
+        run: echo "Running complete release workflow v3"
+
       - name: Checkout App Hub
         uses: actions/checkout@v4
 
@@ -91,6 +94,3 @@ jobs:
               exit 1
             fi
           done
-
-          KEYSTORE_PATH="$RUNNER_TEMP/apphub-release.jks"
-          trap 'rm -f "$KEYSTORE_PATH" "$RUNNER_TEMP/apphub-aligned.apk"' EXIT

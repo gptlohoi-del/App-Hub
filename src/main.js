@@ -185,7 +185,7 @@ function createHome() {
     statusBar,
     sync,
     createDiagnosticPanel(),
-    el('p', { className: 'build-marker' }, 'Giao diện: OTA-DIAG-v3 · 28/10/2026')
+    el('p', { className: 'build-marker' }, 'Giao diện: OTA-DIAG-v4 · 28/10/2026')
   );
   const heading = el('div', { className: 'section-heading' });
   heading.append(el('h2', {}, 'Tính năng'), el('span', { className: 'count' }, `${modules.length} ứng dụng`));

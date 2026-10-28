@@ -1,13 +1,304 @@
-<!doctype html>
-<html lang="vi">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#101c31" />
-    <title>App Hub - Offline</title>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
-  </body>
+<!DOCTYPE html>
+<html lang="vi" data-theme="light">
+<head>
+<script>window.__APP_HUB__ = true;</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#f1f5f9" id="metaThemeColor" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <title>SmooDri - Trợ lý Lái xe Êm ái</title>
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png" />
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div class="app-container">
+    <!-- HÀNG 1: TRẠNG THÁI ĐỘ DỐC & NÚT CÔNG CỤ -->
+    <div class="top-bar">
+      <div id="slopeBadge" class="slope-badge">
+        <span>⛰️</span>
+        <span id="slopeText">Đường bằng (0°)</span>
+      </div>
+      <div class="top-actions">
+        <button id="btnQuickCalib" class="btn-icon" title="Đặt lại tâm 0G ngay lập tức">
+          🎯 Đặt lại 0G
+        </button>
+        <button id="btnSettings" class="btn-icon" title="Mở cài đặt">
+          ⚙️
+        </button>
+      </div>
+    </div>
+
+    <!-- HÀNG 2: ĐIỂM ÊM ÁI (+ SỐ LẦN VƯỢT NGƯỠNG) & BẢNG CẢNH BÁO -->
+    <div class="status-row">
+      <div class="score-card">
+        <span class="score-label">ĐIỂM CHUYẾN ĐI</span>
+        <div class="score-main-wrap">
+          <span id="scoreValue" class="score-value">100</span>
+          <span id="violationCount" class="violation-badge" title="Số lần vượt ngưỡng 100% hoặc lạng lách">0</span>
+        </div>
+        <span id="instantScore" class="instant-score">Hiện tại: 100</span>
+      </div>
+      <div id="alertBanner" class="alert-banner">
+        <div id="alertTitle" class="alert-title">SẴN SÀNG</div>
+        <div id="alertSub" class="alert-sub">Gắn cố định máy & bấm Bắt đầu</div>
+      </div>
+    </div>
+
+    <!-- HÀNG 3: CỐC NƯỚC LỰC G & BIỂU ĐỒ (BAR / DONUT) -->
+    <div class="main-panel">
+      <div class="cup-wrapper">
+        <div class="cup-circle" id="cupCircle">
+          <div id="cupRingLvl2" class="cup-ring-lvl2"></div>
+          <div id="cupRingLvl1" class="cup-ring-lvl1"></div>
+          <div class="crosshair-h"></div>
+          <div class="crosshair-v"></div>
+          <div id="gBall" class="g-ball"></div>
+          <div id="cupReadout" class="cup-readout">0.00 G</div>
+        </div>
+      </div>
+
+      <!-- HIỂN THỊ KIỂU 1: BIỂU ĐỒ 4 THANH NGANG (BAR CHART) -->
+      <div id="barsView" class="bars-container">
+        <div class="bar-item" data-metric="xoc">
+          <div class="bar-header">
+            <span>💥 Ổ GÀ & ĐƯỜNG XÓC</span>
+            <span id="valXoc">0%</span>
+          </div>
+          <div class="bar-track">
+            <div id="markXoc1" class="bar-mark-lvl1"></div>
+            <div id="markXoc2" class="bar-mark-lvl2"></div>
+            <div id="peakXoc" class="bar-peak-hold"></div>
+            <div id="barXoc" class="bar-fill"></div>
+          </div>
+        </div>
+        <div class="bar-item" data-metric="phanh">
+          <div class="bar-header">
+            <span>🛑 PHANH (THẮNG)</span>
+            <span id="valPhanh">0%</span>
+          </div>
+          <div class="bar-track">
+            <div id="markPhanh1" class="bar-mark-lvl1"></div>
+            <div id="markPhanh2" class="bar-mark-lvl2"></div>
+            <div id="peakPhanh" class="bar-peak-hold"></div>
+            <div id="barPhanh" class="bar-fill"></div>
+          </div>
+        </div>
+
+        <div class="bar-item" data-metric="cua">
+          <div class="bar-header">
+            <span>🔄 VÀO CUA & LẮC NGANG</span>
+            <span id="valCua">0%</span>
+          </div>
+          <div class="bar-track">
+            <div id="markCua1" class="bar-mark-lvl1"></div>
+            <div id="markCua2" class="bar-mark-lvl2"></div>
+            <div id="peakCua" class="bar-peak-hold"></div>
+            <div id="barCua" class="bar-fill"></div>
+          </div>
+        </div>
+
+        <!-- THANH THỨ 4: Ổ GÀ & ĐƯỜNG XÓC -->
+        <div class="bar-item" data-metric="ga">
+          <div class="bar-header">
+            <span>🚀 TĂNG TỐC (GA)</span>
+            <span id="valGa">0%</span>
+          </div>
+          <div class="bar-track">
+            <div id="markGa1" class="bar-mark-lvl1"></div>
+            <div id="markGa2" class="bar-mark-lvl2"></div>
+            <div id="peakGa" class="bar-peak-hold"></div>
+            <div id="barGa" class="bar-fill"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- HIỂN THỊ KIỂU 2: BIỂU ĐỒ 4 VÒNG TRÒN (DONUT CHART) -->
+      <div id="donutsView" class="donuts-container hidden">
+        <div class="donut-item" data-metric="xoc">
+          <div class="donut-svg-wrap">
+            <svg class="donut-svg" viewBox="0 0 72 72">
+              <circle class="donut-track" cx="36" cy="36" r="30"></circle>
+              <circle id="donutXoc" class="donut-ring" cx="36" cy="36" r="30"></circle>
+            </svg>
+            <span id="donutValXoc" class="donut-val">0%</span>
+          </div>
+          <span class="donut-label">💥 Ổ GÀ</span>
+        </div>
+        <div class="donut-item" data-metric="phanh">
+          <div class="donut-svg-wrap">
+            <svg class="donut-svg" viewBox="0 0 72 72">
+              <circle class="donut-track" cx="36" cy="36" r="30"></circle>
+              <circle id="donutPhanh" class="donut-ring" cx="36" cy="36" r="30"></circle>
+            </svg>
+            <span id="donutValPhanh" class="donut-val">0%</span>
+          </div>
+          <span class="donut-label">🛑 PHANH</span>
+        </div>
+
+        <div class="donut-item" data-metric="cua">
+          <div class="donut-svg-wrap">
+            <svg class="donut-svg" viewBox="0 0 72 72">
+              <circle class="donut-track" cx="36" cy="36" r="30"></circle>
+              <circle id="donutCua" class="donut-ring" cx="36" cy="36" r="30"></circle>
+            </svg>
+            <span id="donutValCua" class="donut-val">0%</span>
+          </div>
+          <span class="donut-label">🔄 CUA</span>
+        </div>
+
+        <div class="donut-item" data-metric="ga">
+          <div class="donut-svg-wrap">
+            <svg class="donut-svg" viewBox="0 0 72 72">
+              <circle class="donut-track" cx="36" cy="36" r="30"></circle>
+              <circle id="donutGa" class="donut-ring" cx="36" cy="36" r="30"></circle>
+            </svg>
+            <span id="donutValGa" class="donut-val">0%</span>
+          </div>
+          <span class="donut-label">🚀 GA</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Điều chỉnh nhanh độ êm ái: + nghiêm ngặt hơn, - linh hoạt hơn -->
+    <div class="bottom-bar">
+      <div class="comfort-control" aria-label="Chỉnh nhanh mức độ êm ái">
+        <button id="btnComfortMinus" class="comfort-step" type="button" aria-label="Giảm độ nhạy, lái linh hoạt hơn" title="Linh hoạt hơn">−</button>
+        <div class="comfort-value" aria-live="polite">
+          <span>MỨC ÊM ÁI</span>
+          <strong id="mainScaleLabel">60</strong>
+        </div>
+        <button id="btnComfortPlus" class="comfort-step" type="button" aria-label="Tăng độ nhạy, yêu cầu êm ái hơn" title="Êm hơn">+</button>
+      </div>
+      <button id="btnStart" class="btn-main" type="button"><span>▶ BẮT ĐẦU</span></button>
+    </div>
+  </div>
+
+  <!-- CÀI ĐẶT: CƠ BẢN / ÂM THANH / NÂNG CAO -->
+  <div id="settingsModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="settingsTitle">⚙️ Cài đặt SmooDri</h3>
+        <button id="btnCloseModal" class="btn-icon" type="button">Đóng ✕</button>
+      </div>
+
+      <div class="section-divider">1. Mức độ êm ái</div>
+      <div class="setting-group">
+        <div class="setting-label"><label for="rngComfort">Độ nhạy đánh giá</label><strong id="lblComfort">60/100</strong></div>
+        <input type="range" id="rngComfort" min="20" max="100" step="5" value="60" />
+        <div class="scale-ends"><span>← Linh hoạt hơn</span><span>Êm hơn →</span></div>
+        <div id="comfortDescription" class="setting-hint">Tăng mức này để phát hiện các thao tác chưa êm sớm hơn.</div>
+        <div id="customBadge" class="setting-hint hidden">Đang dùng ngưỡng tùy chỉnh; nhấn +/− hoặc kéo thanh trên để áp dụng lại ngưỡng đồng bộ.</div>
+      </div>
+
+      <div class="section-divider">2. Chọn chỉ số hiển thị</div>
+      <div class="setting-group">
+        <div class="setting-hint">Có thể chọn một hoặc nhiều chỉ số. Chỉ ẩn giao diện, vẫn đo và cảnh báo đủ bốn chỉ số.</div>
+        <div class="metric-choices">
+          <label><input type="checkbox" data-visible-metric="xoc" checked /> 💥 Ổ gà & đường xóc</label>
+          <label><input type="checkbox" data-visible-metric="phanh" checked /> 🛑 Phanh (thắng)</label>
+          <label><input type="checkbox" data-visible-metric="cua" checked /> 🔄 Vào cua & lắc ngang</label>
+          <label><input type="checkbox" data-visible-metric="ga" checked /> 🚀 Tăng tốc (ga)</label>
+        </div>
+        <button id="btnShowAll" class="btn-option" type="button">Hiện cả 4 chỉ số</button>
+      </div>
+
+      <div class="section-divider">3. Âm thanh cảnh báo</div>
+      <div class="setting-group">
+        <label class="toggle-line"><span>Bật tiếng bíp khi vượt ngưỡng</span><input id="chkSoundEnabled" type="checkbox" checked /></label>
+        <div class="setting-hint">Tiếng bíp chỉ phát khi chỉ số đạt 100% trở lên. Riêng lạng lách có cảnh báo riêng.</div>
+      </div>
+      <div class="setting-group">
+        <div class="setting-label"><label for="rngVolumeBoost">Âm lượng cảnh báo</label><strong id="lblVolumeBoost">70%</strong></div>
+        <input type="range" id="rngVolumeBoost" min="10" max="100" step="5" value="70" />
+      </div>
+      <div class="setting-group">
+        <div class="setting-label"><span>Kiểu âm báo</span><span id="lblWaveType">Bíp rõ</span></div>
+        <div class="option-grid-3">
+          <button class="btn-option" id="btnWaveSquare" data-wave="square" type="button">📢 Bíp rõ</button>
+          <button class="btn-option" id="btnWaveTriangle" data-wave="triangle" type="button">🔔 Bíp dịu</button>
+          <button class="btn-option" id="btnWaveSine" data-wave="sine" type="button">🔉 Bíp nhẹ</button>
+        </div>
+      </div>
+      <div class="setting-group">
+        <div class="setting-label"><span>Âm báo riêng khi gặp ổ gà</span><span id="lblPotholeWave">Âm trầm</span></div>
+        <div class="option-grid-3">
+          <button class="btn-option" id="btnPotholeSaw" data-pothole="sawtooth" type="button">🚨 Âm trầm</button>
+          <button class="btn-option" id="btnPotholeSquare" data-pothole="square" type="button">📢 Âm mạnh</button>
+          <button class="btn-option" id="btnPotholeSine" data-pothole="sine" type="button">🔉 Âm nhẹ</button>
+        </div>
+      </div>
+      <button class="btn-option" id="btnTestBeepHigh" type="button">▶ Nghe thử 4 tiếng bíp nhanh</button>
+      <button class="btn-option" id="btnTestPothole" type="button">💥 Nghe thử âm báo ổ gà</button>
+
+      <div class="section-divider">4. Giao diện</div>
+      <div class="setting-group">
+        <div class="setting-label"><span>Chế độ màu sắc</span><span id="lblThemeName">Sáng</span></div>
+        <div class="option-grid-2">
+          <button class="btn-option" id="btnThemeLight" type="button">☀️ Sáng</button>
+          <button class="btn-option" id="btnThemeDark" type="button">🌙 Tối</button>
+        </div>
+      </div>
+      <div class="setting-group">
+        <div class="setting-label"><span>Kiểu hiển thị chỉ số</span><span id="lblChartType">Thanh ngang</span></div>
+        <div class="option-grid-2">
+          <button class="btn-option" id="btnChartBar" type="button">📊 Thanh ngang</button>
+          <button class="btn-option" id="btnChartDonut" type="button">🍩 Vòng tròn</button>
+        </div>
+      </div>
+
+      <details id="advancedSettings" class="advanced-settings">
+        <summary>⚙️ Cài đặt nâng cao (không bắt buộc)</summary>
+        <div class="advanced-inner">
+          <div class="setting-hint">Chỉ điều chỉnh khi bạn hiểu rõ các thông số. SmooDri không phải thiết bị đo chuẩn hóa.</div>
+          <div class="setting-group">
+            <div class="setting-label"><label for="rngMaxGa">Ngưỡng tăng tốc (Ga)</label><span id="lblMaxGa">0.25 G</span></div>
+            <input id="rngMaxGa" type="range" min="0.05" max="0.50" step="0.01" />
+          </div>
+          <div class="setting-group">
+            <div class="setting-label"><label for="rngMaxPhanh">Ngưỡng phanh</label><span id="lblMaxPhanh">0.28 G</span></div>
+            <input id="rngMaxPhanh" type="range" min="0.05" max="0.55" step="0.01" />
+          </div>
+          <div class="setting-group">
+            <div class="setting-label"><label for="rngMaxCua">Ngưỡng vào cua</label><span id="lblMaxCua">0.25 G</span></div>
+            <input id="rngMaxCua" type="range" min="0.05" max="0.50" step="0.01" />
+          </div>
+          <div class="setting-group">
+            <div class="setting-label"><label for="rngPotholeThreshold">Ngưỡng ổ gà & đường xóc</label><span id="lblPotholeThreshold">0.30 G</span></div>
+            <input id="rngPotholeThreshold" type="range" min="0.08" max="0.65" step="0.01" />
+          </div>
+          <div class="setting-group">
+            <div class="setting-label"><label for="rngMaxJerk">Ngưỡng giật ngang / lạng lách</label><span id="lblMaxJerk">0.30 G/s</span></div>
+            <input id="rngMaxJerk" type="range" min="0.08" max="0.70" step="0.01" />
+          </div>
+          <div class="setting-group">
+            <div class="setting-label"><label for="rngStartDelay">Thời gian chuẩn bị và cân chỉnh</label><span id="lblStartDelay">1.0 giây</span></div>
+            <input id="rngStartDelay" type="range" min="1" max="5" step="0.5" />
+          </div>
+          <div class="setting-group">
+            <div class="setting-label"><label for="rngScoreRecovery">Hồi phục điểm tức thời</label><span id="lblScoreRecovery">3 đ/s</span></div>
+            <input id="rngScoreRecovery" type="range" min="1" max="20" step="1" />
+          </div>
+          <div class="setting-group">
+            <div class="setting-label"><label for="rngPeakHoldTime">Giữ giá trị cao nhất</label><span id="lblPeakHoldTime">1.5 giây</span></div>
+            <input id="rngPeakHoldTime" type="range" min="0" max="5" step="0.5" />
+          </div>
+          <div class="setting-group">
+            <div class="setting-label"><label for="rngAlertHoldTime">Thời gian giữ cảnh báo</label><span id="lblAlertHoldTime">3.0 giây</span></div>
+            <input id="rngAlertHoldTime" type="range" min="0.5" max="8" step="0.5" />
+          </div>
+          <div class="ref-info-box">Các ngưỡng G và G/s là giá trị thử nghiệm có thể tùy chỉnh, không phải mốc bắt buộc của ISO 2631-1 hoặc mức đảm bảo an toàn giao thông. Kết quả còn phụ thuộc loại xe, vị trí đặt máy và chất lượng cảm biến.</div>
+        </div>
+      </details>
+      <button id="btnResetDefaults" class="btn-reset" type="button">↺ Khôi phục cài đặt mặc định</button>
+    </div>
+  </div>
+  <script src="./app.js" defer></script>
+<script src="./apphub-smoodri-native-bridge.js" defer></script>
+</body>
 </html>

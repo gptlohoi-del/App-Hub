@@ -1,10 +1,89 @@
 import './style.css';
-import { Capacitor, CapacitorHttp } from '@capacitor/core';
+import { Capacitor, CapacitorHttp, registerPlugin } from '@capacitor/core';
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 
 const BASE = import.meta.env.BASE_URL;
 const UPDATE_URL = 'https://gptlohoi-del.github.io/App-Hub/updates/latest.json';
 const app = document.getElementById('app');
+
+// Android FGS belongs to App Hub, not to an individual Web module. A normal
+// browser has no access to this plugin; the original SmooDri PWA is unchanged.
+const SmooDriMotion = registerPlugin('SmooDriMotion');
+let nativeMotionStatus = null;
+let nativeMotionError = '';
+
+function safeNativeError(error) {
+  return String(error?.message || error || 'Không xác định').slice(0, 180);
+}
+function motionSummary(s) {
+  if (!s?.running) return 'Đo nền chưa chạy';
+  return `Đang đo nền · Điểm ~${s.score ?? '--'} · GA ${s.ga ?? 0}% · Phanh ${s.phanh ?? 0}% · Cua ${s.cua ?? 0}% · Xóc ${s.xoc ?? 0}%`;
+}
+function renderMotionStatus() {
+  const summary = motionSummary(nativeMotionStatus);
+  for (const id of ['native-motion-home', 'native-motion-view']) {
+    const panel = document.getElementById(id);
+    if (!panel) continue;
+    if (id === 'native-motion-home') panel.hidden = !nativeMotionStatus?.running && !nativeMotionError && !/thất bại|Không đăng ký|không có gia tốc/i.test(nativeMotionStatus?.status || '');
+    const label = panel.querySelector('.native-motion-description');
+    if (label) label.textContent = nativeMotionError || (!nativeMotionStatus?.running && nativeMotionStatus?.status !== 'Đã dừng đo nền' ? nativeMotionStatus?.status : summary);
+    const stop = panel.querySelector('.native-motion-stop');
+    if (stop) stop.hidden = !nativeMotionStatus?.running;
+  }
+}
+async function refreshNativeMotion() {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    nativeMotionStatus = await SmooDriMotion.getStatus();
+    renderMotionStatus();
+  } catch (error) {
+    nativeMotionError = 'Không đọc được cảm biến Android: ' + safeNativeError(error);
+    renderMotionStatus();
+  }
+}
+async function startNativeMotion(comfort = 60) {
+  if (!Capacitor.isNativePlatform()) return;
+  nativeMotionError = '';
+  try {
+    await SmooDriMotion.start({comfort: Math.max(20, Math.min(100, Number(comfort) || 60))});
+    await refreshNativeMotion();
+  } catch (error) {
+    nativeMotionError = 'Không bật được đo nền: ' + safeNativeError(error);
+    renderMotionStatus();
+  }
+}
+async function stopNativeMotion() {
+  if (!Capacitor.isNativePlatform()) return;
+  nativeMotionError = '';
+  try {
+    await SmooDriMotion.stop();
+    // Android processes stop action asynchronously.
+    await refreshNativeMotion();
+  } catch (error) {
+    nativeMotionError = 'Không dừng được đo nền: ' + safeNativeError(error);
+    renderMotionStatus();
+  }
+}
+function nativeMotionPanel(id) {
+  const box = el('div', { className: 'native-motion-panel', id });
+  const label = el('span', { className: 'native-motion-description' }, 'Đo nền chưa chạy');
+  const stop = el('button', { className: 'native-motion-stop', type: 'button' }, 'DỪNG ĐO NỀN');
+  stop.hidden = true;
+  stop.addEventListener('click', () => void stopNativeMotion());
+  box.append(label, stop);
+  return box;
+}
+// The offline SmooDri copy posts only to its SAME-ORIGIN parent. No other repo
+// can start the sensor service by sending a forged message from another frame.
+window.addEventListener('message', (event) => {
+  if (event.origin !== window.location.origin || active?.id !== 'smoodri') return;
+  const frame = document.querySelector('.module-frame');
+  if (!frame || event.source !== frame.contentWindow) return;
+  const type = event.data?.type;
+  if (type === 'APPHUB_SMOODRI_START_NATIVE') void startNativeMotion(event.data.comfort);
+  else if (type === 'APPHUB_SMOODRI_STOP_NATIVE') void stopNativeMotion();
+});
+
 let modules = [];
 let active = null;
 let updating = false;
@@ -176,8 +255,17 @@ function createHome() {
   const statusBar = el('div', { className: 'status', id: 'status', role: 'status', 'aria-live': 'polite' }, 'Có thể sử dụng khi không có mạng');
   const sync = el('button', { className: 'sync', type: 'button', id: 'syncButton' }, '↻  Kiểm tra cập nhật');
   sync.addEventListener('click', () => void checkUpdate(true));
-  header.append(top, statusBar, sync);
-  header.append(createDiagnosticPanel());
+  // Chỉ giữ logo và tên App Hub ở đầu trang.
+  header.append(top);
+  // Toàn bộ OTA (nút, trạng thái, tiến độ, chẩn đoán) nằm sau danh sách ứng dụng.
+  const updateSection = el('section', { className: 'update-section' });
+  updateSection.append(
+    el('h2', { className: 'update-heading' }, 'Cập nhật ứng dụng'),
+    statusBar,
+    sync,
+    createDiagnosticPanel(),
+    el('p', { className: 'build-marker' }, 'Giao diện: OTA-DIAG-v4 · 28/10/2026')
+  );
   const heading = el('div', { className: 'section-heading' });
   heading.append(el('h2', {}, 'Tính năng'), el('span', { className: 'count' }, `${modules.length} ứng dụng`));
   const grid = el('div', { className: 'grid' });
@@ -193,7 +281,10 @@ function createHome() {
   }
   if (!modules.length) grid.append(el('p', {}, 'Chưa có module nào trong bản đóng gói.'));
   const footer = el('p', { className: 'footer' }, 'Dùng được khi mất mạng. Nếu có mạng, App Hub tự kiểm tra bản cập nhật khi mở.');
-  app.append(header, heading, grid, footer);
+  const motionBox = nativeMotionPanel('native-motion-home');
+  motionBox.hidden = true;
+  app.append(header, heading, grid, motionBox, footer, updateSection);
+  renderMotionStatus();
   showDiagnostics();
 }
 
@@ -204,6 +295,7 @@ function openModule(mod) {
   const back = el('button', { className: 'back', type: 'button' }, '‹  App Hub');
   back.addEventListener('click', () => { active = null; createHome(); });
   bar.append(back, el('span', { className: 'viewer-title' }, mod.name));
+  if (mod.id === 'smoodri') bar.append(nativeMotionPanel('native-motion-view'));
   const frame = el('iframe', {
     className: 'module-frame', title: mod.name,
     src: `${BASE}modules/${encodeURIComponent(mod.id)}/${encodeURIComponent(mod.entry || 'index.html')}`,
@@ -211,6 +303,7 @@ function openModule(mod) {
   });
   view.append(bar, frame);
   app.replaceChildren(view);
+  renderMotionStatus();
 }
 
 // Route bundled links from the Links module to other offline modules.
@@ -297,7 +390,16 @@ async function checkUpdate(manual = false) {
     }
     otaProgress = 0;
     setStage('download', `Phát hiện bản ${latest.version}. Đang tải gói cập nhật…`);
-    const bundle = await CapacitorUpdater.download({ url: latest.url, version: latest.version });
+    // Capgo Android requires a checksum for each downloadable ZIP bundle.
+    // latest.sha256 must be the SHA-256 of the ZIP itself, not a hash of dist/ files.
+    if (typeof latest.sha256 !== 'string' || !/^[0-9a-f]{64}$/i.test(latest.sha256)) {
+      throw new Error('latest.json thiếu SHA-256 hợp lệ của file ZIP cập nhật');
+    }
+    const bundle = await CapacitorUpdater.download({
+      url: latest.url,
+      version: latest.version,
+      checksum: latest.sha256.toLowerCase()
+    });
     if (!bundle?.id) throw new Error('Plugin download không trả về Bundle ID');
     logEvent('info', 'download', `Đã tải và giải nén bản ${latest.version}; bundle id: ${bundle.id}.`);
     otaProgress = 100;
@@ -340,14 +442,7 @@ async function installUpdaterDiagnostics() {
 }
 
 async function boot() {
-  if (Capacitor.isNativePlatform()) {
-    // Always notify early so that an applied bundle will not be rolled back.
-    void CapacitorUpdater.notifyAppReady().catch(err => {
-      lastVisibleError = { stage: 'ready', message: `notifyAppReady(): ${shortError(err)}`, code: errorCode(err) };
-      logEvent('error', 'ready', lastVisibleError.message, lastVisibleError.code);
-    });
-    void installUpdaterDiagnostics();
-  }
+  if (Capacitor.isNativePlatform()) void installUpdaterDiagnostics();
   try {
     const response = await fetch(`${BASE}modules.json`, { cache: 'no-store' });
     if (!response.ok) throw new Error('modules.json missing');
@@ -355,7 +450,24 @@ async function boot() {
     modules = Array.isArray(data.modules) ? data.modules : [];
   } catch (error) { console.error('Module registry:', error); }
   createHome();
-  // Offline modules load immediately; network checks must never block boot.
+  // Chỉ xác nhận phiên bản Web đã sẵn sàng sau khi giao diện được khởi tạo.
+  // Không chờ kết nối Internet; gọi trước bước kiểm tra OTA.
+  if (Capacitor.isNativePlatform()) {
+    void CapacitorUpdater.notifyAppReady().catch(err => {
+      lastVisibleError = { stage: 'ready', message: `notifyAppReady(): ${shortError(err)}`, code: errorCode(err) };
+      logEvent('error', 'ready', lastVisibleError.message, lastVisibleError.code);
+    });
+  }
+  // Các tính năng offline phải mở được trước khi kiểm tra mạng.
+  void refreshNativeMotion();
+  // Poll only a tiny status payload: actual sensor acquisition and scoring run
+  // on the Android service's sensor thread even when this WebView is suspended.
+  if (Capacitor.isNativePlatform()) {
+    setInterval(() => void refreshNativeMotion(), 1500);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') void refreshNativeMotion();
+    });
+  }
   void checkUpdate(false);
 }
 boot();

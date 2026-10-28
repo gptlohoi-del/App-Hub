@@ -1,0 +1,37 @@
+APP HUB — GÓI SỬA LỖI OTA CÓ CHẨN ĐOÁN
+
+MỤC TIÊU
+- Mỗi lần kiểm tra cập nhật, hiển thị bước hiện tại.
+- Nếu lỗi: hiển thị bước lỗi, mã lỗi, mô tả và gợi ý xử lý.
+- Khi tải ZIP: hiển thị tiến độ nếu plugin báo phần trăm.
+- Ghi nhật ký gọn trong localStorage, có nút Sao chép báo cáo lỗi.
+- Nếu native HTTP lỗi, thử lại bằng Web fetch.
+- Giữ nguyên danh sách repo và dữ liệu module, không thay public/, modules.config.json hay publish-updates.yml.
+
+CÁCH ĐƯA FILE LÊN GITHUB
+1. Sao lưu/clone repo https://github.com/gptlohoi-del/App-Hub
+2. Trong gói ZIP có 3 file cần sao chép ĐÚNG VỊ TRÍ:
+   src/main.js                           -> src/main.js
+   src/style.css                         -> src/style.css
+   .github/workflows/build-apk.yml       -> .github/workflows/build-apk.yml
+3. Đưa các file vào repo, Commit / Push nhánh main. KHÔNG xóa thư mục public/modules hay file modules.config.json.
+4. Vào Actions > 1. Build APK (Android Release Signed) > Run workflow (TẠO LẦN CHẠY MỚI).
+5. Kiểm tra ba bước cuối:
+   Sign and verify release APK
+   VERIFY signed APK file before upload
+   UPLOAD signed release APK to GitHub
+6. Vào Summary, dưới Artifacts tải App-Hub-release-APK, giải nén lấy App-Hub-release.apk.
+7. Cài APK này trên điện thoại. Dùng cùng appId vn.gptlohoi.apphub và cùng khóa ký cũ để cài đè (nếu APK hiện có là debug ký khác thì cần sao lưu dữ liệu trước khi gỡ).
+
+CÁCH XEM VÀ GỬI BÁO CÁO
+- Trên màn hình chính bấm Kiểm tra cập nhật.
+- Xem dòng đỏ báo bước/mã lỗi nếu thất bại.
+- Mở 'Xem nhật ký kỹ thuật và sao chép báo cáo'.
+- Bấm 'Sao chép báo cáo lỗi', gửi nội dung vào cuộc trò chuyện sau khi xem lại và che thông tin nhạy cảm nếu xuất hiện.
+- Nếu cập nhật OTA thành công, đóng và mở App Hub lại khi không dùng tính năng đang hoạt động.
+
+LƯU Ý
+- Gói này không phải file APK đã biên dịch; phải chạy GitHub Actions theo hướng dẫn trên để lấy APK.
+- Chưa kiểm thử thực tế trên điện thoại, chỉ kiểm tra cú pháp JS và workflow.
+- Phiên bản Web cập nhật qua OTA vẫn phải nằm trong máy trước khi chuyển sang trạng thái offline.
+- Đừng đưa khóa JKS hay Secrets vào repo hoặc vào báo cáo.

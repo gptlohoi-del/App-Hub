@@ -185,7 +185,7 @@ function createHome() {
     statusBar,
     sync,
     createDiagnosticPanel(),
-    el('p', { className: 'build-marker' }, 'Giao diện: OTA-DIAG-v4 · 28/10/2026')
+    el('p', { className: 'build-marker' }, 'Giao diện: OTA-DIAG-v3 · 28/10/2026')
   );
   const heading = el('div', { className: 'section-heading' });
   heading.append(el('h2', {}, 'Tính năng'), el('span', { className: 'count' }, `${modules.length} ứng dụng`));
@@ -306,7 +306,16 @@ async function checkUpdate(manual = false) {
     }
     otaProgress = 0;
     setStage('download', `Phát hiện bản ${latest.version}. Đang tải gói cập nhật…`);
-    const bundle = await CapacitorUpdater.download({ url: latest.url, version: latest.version });
+    // Capgo Android requires a checksum for each downloadable ZIP bundle.
+    // latest.sha256 must be the SHA-256 of the ZIP itself, not a hash of dist/ files.
+    if (typeof latest.sha256 !== 'string' || !/^[0-9a-f]{64}$/i.test(latest.sha256)) {
+      throw new Error('latest.json thiếu SHA-256 hợp lệ của file ZIP cập nhật');
+    }
+    const bundle = await CapacitorUpdater.download({
+      url: latest.url,
+      version: latest.version,
+      checksum: latest.sha256.toLowerCase()
+    });
     if (!bundle?.id) throw new Error('Plugin download không trả về Bundle ID');
     logEvent('info', 'download', `Đã tải và giải nén bản ${latest.version}; bundle id: ${bundle.id}.`);
     otaProgress = 100;

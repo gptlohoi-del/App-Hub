@@ -1,0 +1,12 @@
+{
+  "files": [
+    "data.js",
+    "icon-192.png",
+    "icon-512.png",
+    "index - Copy.html",
+    "index.html",
+    "manifest.json",
+    "qrcode.png",
+    "sw.js"
+  ]
+}

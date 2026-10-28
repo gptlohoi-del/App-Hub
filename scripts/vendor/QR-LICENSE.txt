@@ -1,0 +1,4 @@
+The QR encoder included in tungkinh-qr-offline.js is based on
+QRCode for JavaScript by Kazuhiko Arase and the MIT-licensed
+qrcode-terminal vendor source: https://github.com/gtanner/qrcode-terminal
+MIT License: https://opensource.org/licenses/MIT

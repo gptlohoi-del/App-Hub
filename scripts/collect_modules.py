@@ -11,6 +11,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import urllib.error
 import urllib.parse
@@ -90,6 +91,8 @@ def unpack_safe(blob, dest):
                 continue
             if any(p in ('node_modules', 'dist', 'android', '.github') for p in sub):
                 continue
+            if file.filename.lower().endswith(('.rar', '.7z', '.zip')):
+                continue  # archive downloads aren't used by offline Web modules
             if file.external_attr >> 16 & 0o170000 == 0o120000:
                 continue  # symlink
             if file.file_size > 80 * 1024 * 1024:
@@ -104,7 +107,7 @@ def unpack_safe(blob, dest):
     return count
 
 
-def transform_module_html(dest, repo):
+def transform_module_html(dest, repo, bundled_repos):
     path = dest / 'index.html'
     text = path.read_text(encoding='utf-8-sig')
     # Native Capacitor bundles are already stored offline; legacy PWA SWs can
@@ -140,7 +143,7 @@ def transform_module_html(dest, repo):
         else:
             (dest / 'vendor').mkdir(exist_ok=True)
             shutil.copy2(library, dest / 'vendor/jszip.min.js')
-    if repo == 'kinhtest2':
+    if repo in ('kinhtest2', 'thoisao'):
         needle = 'async function discoverServerTracks() {'
         injector = '''async function discoverServerTracks() {
             if (window.__APP_HUB__) {
@@ -152,6 +155,51 @@ def transform_module_html(dest, repo):
 '''
         if needle not in text: raise RuntimeError('Audio app discoverServerTracks() signature changed')
         text = text.replace(needle, injector, 1)
+    if repo == 'tungkinh':
+        # Make CDN styles and QR library local so the reader works offline.
+        vendor = dest / 'vendor'
+        vendor.mkdir(exist_ok=True)
+        css_command = ['node', str(ROOT / 'scripts/generate_tailwind_css.mjs'), str(path), str(vendor / 'tailwind.css')]
+        result = subprocess.run(css_command, capture_output=True, text=True)
+        if result.returncode:
+            raise RuntimeError(f'Could not compile offline Tailwind CSS: {result.stdout} {result.stderr}')
+        print(result.stdout.strip())
+        shutil.copy2(ROOT / 'scripts/vendor/tungkinh-qr-offline.js', vendor / 'qr-offline.js')
+        text = text.replace('<script src="https://cdn.tailwindcss.com"></script>', '<link rel="stylesheet" href="./vendor/tailwind.css">')
+        text = text.replace('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js', './vendor/qr-offline.js')
+        # QR share URLs should point to the public site, never to APK localhost.
+        text = text.replace('const finalUrl = url.toString();', '''const finalUrl = window.__APP_HUB__
+            ? 'https://gptlohoi-del.github.io/tungkinh/' + url.search
+            : url.toString();''')
+        text = text.replace('const linkToCopy = window.location.href;', '''const linkToCopy = window.__APP_HUB__
+            ? 'https://gptlohoi-del.github.io/tungkinh/' + window.location.search
+            : window.location.href;''')
+    if repo == 'linktong':
+        # External sites still require connectivity; bundled module links are
+        # routed through App Hub navigation so they work offline.
+        ids = json.dumps(sorted(bundled_repos), ensure_ascii=False)
+        old = "aTag.href = link.url;"
+        if old not in text:
+            raise RuntimeError('Linktong link assignment changed; update App Hub integration')
+        new = f'''aTag.href = link.url;
+                    if (window.__APP_HUB__) {{
+                        const localIds = new Set({ids});
+                        try {{
+                            const destUrl = new URL(link.url);
+                            const segments = destUrl.pathname.split('/').filter(Boolean);
+                            const repoId = segments[0]?.toLowerCase();
+                            if (destUrl.hostname === 'gptlohoi-del.github.io' && localIds.has(repoId)) {{
+                                aTag.href = '../' + repoId + '/index.html';
+                                aTag.target = '_self';
+                                aTag.addEventListener('click', (event) => {{
+                                    event.preventDefault();
+                                    window.parent.postMessage({{ type: 'APPHUB_OPEN_MODULE', id: repoId }}, window.location.origin);
+                                }});
+                            }}
+                        }} catch (e) {{ console.warn('Invalid link', link.url); }}
+                    }}'''
+        text = text.replace(old, new, 1)
+        text = text.replace("aTag.target = '_blank';", "if (aTag.target !== '_self') aTag.target = '_blank';")
     text = re.sub(r'(<head[^>]*>)', r'\1\n<script>window.__APP_HUB__ = true;</script>', text, count=1, flags=re.I)
     path.write_text(text, encoding='utf-8')
 
@@ -181,7 +229,7 @@ def main():
             meta = json.loads(meta_path.read_text(encoding='utf8')) if meta_path.is_file() else {}
             if meta and meta.get('id', slug) != slug:
                 raise ValueError(f'apphub.json id must equal repo name: {slug}')
-            transform_module_html(dest, slug)
+            transform_module_html(dest, slug, desired.keys())
             files = sorted(p.name for p in dest.iterdir() if p.is_file())
             (dest / 'apphub-files.json').write_text(json.dumps({'files': files}, ensure_ascii=False, indent=2), encoding='utf8')
             modules.append({

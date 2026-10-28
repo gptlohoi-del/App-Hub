@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<script>window.__APP_HUB__ = true;</script>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trang Liên Kết Của Tôi</title>
+    
+    <!-- Cấu hình PWA -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="./icon-192x192.png">
+
+    <style>
+        /* Thiết lập cơ bản */
+        :root {
+            --primary-color: #2563eb;
+            --bg-color: #f3f4f6;
+            --text-color: #1f2937;
+            --button-bg: #ffffff;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding-bottom: 80px; 
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+        }
+
+        p.bio {
+            font-size: 0.9rem;
+            color: #6b7280;
+            margin-bottom: 32px;
+        }
+
+        /* Links Section */
+        .links-container {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .link-card {
+            background-color: var(--button-bg);
+            padding: 16px;
+            border-radius: 12px;
+            text-decoration: none;
+            color: var(--text-color);
+            font-weight: 600;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            border: 1px solid #e5e7eb;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        .link-card:hover {
+            background-color: var(--primary-color);
+            color: #ffffff;
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 15px 30px rgba(37, 99, 235, 0.3);
+            border-color: var(--primary-color);
+        }
+
+        footer {
+            margin-top: 50px;
+            font-size: 0.8rem;
+            color: #9ca3af;
+        }
+
+        /* --- CSS CHO PHẦN FOOTER CHỨA MÃ QR --- */
+        .fixed-footer {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background-color: #ffffff; border-top: 1px solid #e5e7eb;
+            padding: 12px 20px; display: flex; flex-wrap: wrap;
+            justify-content: center; align-items: center; gap: 24px;
+            box-shadow: 0 -4px 6px -1px rgba(0,0,0,0.05); z-index: 50; box-sizing: border-box;
+        }
+
+        .qr-group { display: flex; align-items: center; gap: 10px; }
+        .qr-label { font-size: 10px; font-weight: bold; color: #9ca3af; text-transform: uppercase; }
+        .qr-thumbnail {
+            width: 48px; height: 48px; border: 1px solid #bfdbfe; border-radius: 6px;
+            background-color: #ffffff; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; overflow: hidden; transition: border-color 0.2s;
+        }
+        .qr-thumbnail:hover { border-color: var(--primary-color); }
+        .qr-thumbnail img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+
+        /* --- CSS CHO MODAL PHÓNG TO ẢNH QR --- */
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 100; opacity: 1; transition: opacity 0.3s;
+        }
+        .modal.hidden { display: none; opacity: 0; }
+        .modal-content {
+            background-color: #ffffff; padding: 24px; border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); display: flex;
+            flex-direction: column; align-items: center; gap: 16px;
+            max-width: 90vw; width: 320px;
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 8px; }
+        .modal-header h3 { margin: 0; color: #1e3a8a; font-size: 1.125rem; text-transform: uppercase; }
+        
+        .btn-close {
+            background: #f3f4f6; border: none; border-radius: 50%; width: 32px; height: 32px;
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+            color: #9ca3af; transition: color 0.2s;
+        }
+        .btn-close:hover { color: #ef4444; }
+
+        .qr-large-container {
+            border: 1px solid #e0e7ff; padding: 8px; border-radius: 12px;
+            background-color: #f9fafb; width: 100%; box-sizing: border-box; display: flex; justify-content: center;
+        }
+        .qr-large-container img { width: 100%; max-width: 250px; height: auto; object-fit: contain; }
+
+        .btn-download {
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            width: 100%; background-color: var(--primary-color); color: #ffffff; font-weight: bold;
+            padding: 12px 16px; border-radius: 12px; text-decoration: none; transition: background-color 0.2s;
+            box-sizing: border-box; border: none;
+        }
+        .btn-download:hover { background-color: #1d4ed8; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>LINK TỔNG</h1>
+        <p class="bio">Chào mừng Quý Thầy đến với trang tổng hợp liên kết. Hãy chọn một mục bên dưới!</p>
+
+        <!-- Div trống sẽ được nạp link từ JSON -->
+        <div class="links-container" id="dynamic-links">
+            <p style="color: #6b7280; font-size: 0.9rem;">Đang tải danh sách liên kết...</p>
+        </div>
+    </div>
+
+    <!-- THANH FOOTER CỐ ĐỊNH (CHỈ CÒN MÃ QR) -->
+    <div class="fixed-footer">
+        <div class="qr-group">
+            <span class="qr-label">Mã QR:</span>
+            <div onclick="openQRModal()" title="Nhấn để phóng to" class="qr-thumbnail">
+                <img src="./qrcode.png" alt="QR Code">
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL HIỂN THỊ MÃ QR PHÓNG TO -->
+    <div id="qrModal" class="modal hidden" onclick="closeQRModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>Mã QR Trang Web</h3>
+                <button onclick="closeQRModal()" class="btn-close" title="Đóng">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="qr-large-container">
+                <img src="./qrcode.png" alt="Mã QR Lớn">
+            </div>
+            <a href="./qrcode.png" download="qrcode-lienket.png" class="btn-download">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                TẢI MÃ QR VỀ MÁY
+            </a>
+        </div>
+    </div>
+
+    <!-- Script -->
+    <script>
+        // 1. Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                Promise.resolve()
+                    .then(registration => console.log('Service Worker đã đăng ký thành công:', registration))
+                    .catch(error => console.log('Đăng ký Service Worker thất bại:', error));
+            });
+        }
+
+        // 2. Fetch data từ file links.json và render HTML
+        document.addEventListener('DOMContentLoaded', async () => {
+            const container = document.getElementById('dynamic-links');
+            try {
+                // Tải file dữ liệu
+                const response = await fetch('links.json');
+                if (!response.ok) throw new Error('Network response was not ok');
+                const linksData = await response.json();
+                
+                // Làm rỗng container (xóa chữ đang tải)
+                container.innerHTML = '';
+                
+                // Lặp qua dữ liệu và tạo các thẻ a
+                linksData.forEach(link => {
+                    const aTag = document.createElement('a');
+                    aTag.href = link.url;
+                    if (window.__APP_HUB__) {
+                        const localIds = new Set(["kinhtest2", "linktong", "smoodri", "tapluyenpiano", "thoisao", "tungkinh"]);
+                        try {
+                            const destUrl = new URL(link.url);
+                            const segments = destUrl.pathname.split('/').filter(Boolean);
+                            const repoId = segments[0]?.toLowerCase();
+                            if (destUrl.hostname === 'gptlohoi-del.github.io' && localIds.has(repoId)) {
+                                aTag.href = '../' + repoId + '/index.html';
+                                aTag.target = '_self';
+                                aTag.addEventListener('click', (event) => {
+                                    event.preventDefault();
+                                    window.parent.postMessage({ type: 'APPHUB_OPEN_MODULE', id: repoId }, window.location.origin);
+                                });
+                            }
+                        } catch (e) { console.warn('Invalid link', link.url); }
+                    }
+                    aTag.className = 'link-card';
+                    if (aTag.target !== '_self') aTag.target = '_blank';
+                    aTag.rel = 'noopener noreferrer';
+                    aTag.textContent = link.title;
+                    container.appendChild(aTag);
+                });
+            } catch (error) {
+                console.error('Không tải được link:', error);
+                container.innerHTML = '<p style="color: red;">Đã có lỗi xảy ra khi tải danh sách link!</p>';
+            }
+        });
+
+        // 3. Modal QR
+        function openQRModal() { document.getElementById('qrModal').classList.remove('hidden'); }
+        function closeQRModal() { document.getElementById('qrModal').classList.add('hidden'); }
+    </script>
+</body>
+</html>

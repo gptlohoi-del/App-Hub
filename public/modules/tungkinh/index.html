@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<script>window.__APP_HUB__ = true;</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tụng Kinh</title>
+    <link rel="stylesheet" href="./vendor/tailwind.css">
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#d97706">
+    <link rel="apple-touch-icon" href="./icon-192.png">
+    <style>
+        :root {
+            --accent-color: #d97706; 
+            --pre-bg: #fffff7; 
+            --border-color: #fde68a; 
+            --body-text: #451a03; 
+            --pre-font-size: 1.2rem; 
+        }
+
+        #pdf-content {
+            font-family: "Times New Roman", Times, serif !important;
+            color: var(--body-text);
+        }
+
+        #pdf-content h1, #pdf-content h2, #pdf-content h3, #pdf-content h4, #pdf-content h5 {
+            color: var(--accent-color) !important;
+            font-weight: bold !important;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            line-height: 1.3;
+            display: block;
+        }
+
+        #pdf-content h1 { 
+            font-size: 2.2rem !important; 
+            text-align: center; 
+            border-bottom: 3px solid var(--accent-color);
+            padding-bottom: 15px;
+            text-transform: uppercase;
+        }
+
+        #pdf-content h2 { 
+            font-size: 2rem !important; 
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+        
+        #pdf-content h3 { 
+            font-size: 1.5rem !important; 
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+        
+        #pdf-content h4 { 
+            font-size: 1.2rem !important; 
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        #pdf-content pre {
+            background-color: var(--pre-bg) !important;
+            padding: 0.5rem !important;
+            border-radius: 0.5rem;
+            border-left: 4px solid var(--accent-color) !important;
+            font-family: "Times New Roman", Times, serif !important;
+            font-size: var(--pre-font-size) !important;
+            line-height: 1.4 !important;
+            white-space: pre-wrap !important;
+            word-wrap: break-word !important;
+            margin: 1rem 0 !important;
+            border: 1px solid var(--border-color);
+            color: var(--body-text) !important;
+        }
+
+        .selection-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px; height: 20px;
+            background-color: var(--accent-color);
+            color: white !important;
+            border-radius: 50%;
+            font-size: 10px; font-weight: bold;
+        }
+
+        html { scroll-behavior: smooth; }
+        .section-block { page-break-inside: avoid; }
+        
+        #pdf-content h2, #pdf-content h3, #pdf-content h4 {
+            cursor: pointer;
+            position: relative;
+            padding-left: 25px !important;
+        }
+
+        #pdf-content h2::before, #pdf-content h3::before, #pdf-content h4::before {
+            content: '▼';
+            position: absolute;
+            left: 0;
+            transition: transform 0.3s;
+            font-size: 0.8em;
+            color: var(--accent-color);
+        }
+
+        #pdf-content h2.is-collapsed::before, #pdf-content h3.is-collapsed::before, #pdf-content h4.is-collapsed::before {
+            transform: rotate(-90deg);
+        }
+
+        .section-hidden {
+            display: none !important;
+        }
+
+        #main-checklist label, 
+        #sutra-checklist label,
+        #main-checklist span,
+        #sutra-checklist span {
+            font-weight: 700 !important;
+            color: #451a03;
+        }
+
+        #main-checklist label:hover, 
+        #sutra-checklist label:hover {
+            color: var(--accent-color);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #fef3c7; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #fcd34d; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #fbbf24; }
+        
+        @keyframes highlight-blink {
+            0% { background-color: transparent; }
+            50% { background-color: var(--pre-bg); transform: scale(1.02); }
+            100% { background-color: transparent; }
+        }
+        .blink-target {
+            animation: highlight-blink 0.8s ease-in-out 3;
+            border: 2px solid var(--accent-color) !important;
+            border-radius: 8px;
+            z-index: 10;
+        }
+
+        .mobile-only-btn { display: block; }
+        @media (min-width: 768px) {
+            .mobile-only-btn { display: none !important; }
+        }
+
+        @media print {
+            body, html, .flex-col, main, .flex-1, aside {
+                height: auto !important;
+                min-height: auto !important;
+                overflow: visible !important;
+                display: block !important;
+            }
+            .no-print, header, aside, .mobile-only-btn, footer, .fixed, #qrModal, #shareMenu {
+                display: none !important;
+            }
+            body { background: white !important; }
+            main {
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .max-w-3xl {
+                box-shadow: none !important;
+                padding: 0 !important;
+            }
+            .section-hidden {
+                display: block !important; 
+            }
+            #pdf-content h2::before, #pdf-content h3::before, #pdf-content h4::before {
+                display: none !important; 
+            }
+            #pdf-content h2, #pdf-content h3, #pdf-content h4 {
+                padding-left: 0 !important;
+            }
+        }
+    </style>
+    <script src="./vendor/qr-offline.js"></script>
+</head>
+<body class="bg-amber-50 flex flex-col min-h-screen font-sans">
+<div class="no-print fixed top-0 left-1/2 -translate-x-1/2 z-[60] flex gap-1 bg-white/90 backdrop-blur-sm p-1 rounded-full shadow-lg border border-amber-200">
+    <button aria-label="Giảm cỡ chữ" onclick="changeFontSize(-0.1)" class="w-8 h-8 flex items-center justify-center bg-white hover:bg-amber-100 text-amber-700 rounded-full text-sm font-bold shadow-sm transition-all active:scale-90 border border-amber-200">
+        A-
+    </button>
+    <div id="font-size-display" class="flex items-center px-1 text-[15px] font-bold text-amber-900 min-w-[32px] justify-center">
+        1.2
+    </div>
+    <button aria-label="Tăng cỡ chữ" onclick="changeFontSize(0.1)" class="w-8 h-8 flex items-center justify-center bg-white hover:bg-amber-100 text-amber-700 rounded-full text-sm font-bold shadow-sm transition-all active:scale-90 border border-amber-200">
+        A+
+    </button>
+</div>
+
+    <header class="no-print bg-amber-800 text-amber-50 p-1.5 sticky top-0 z-50 flex justify-between items-center shadow-lg">
+        <div onclick="window.scrollTo(0,0)" class="cursor-pointer hover:bg-amber-700 p-1.5 rounded-lg transition-all flex items-center gap-1.5">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h4m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            <span class="text-[10px] font-bold uppercase tracking-tighter">HOME</span>
+        </div>
+    </header>
+
+    <div class="flex flex-col md:flex-row-reverse flex-1 overflow-hidden">
+        <main class="flex-1 p-1 md:p-12 bg-amber-50 overflow-y-auto" style="overflow-anchor: none;">
+            <div class="max-w-3xl mx-auto bg-white min-h-full shadow-xl p-1 md:p-16 rounded-sm border border-amber-100">
+                <div id="preview-placeholder" class="no-print text-center py-20 text-amber-300">
+                    <p class="text-xl font-medium">Chọn nội dung kinh để hiển thị.</p>
+                </div>
+                <div id="pdf-content" class="hidden"></div>
+            </div>
+        </main>
+    
+        <aside class="no-print w-full md:w-96 bg-white border-r border-amber-100 overflow-y-auto p-4 space-y-6">
+            <button onclick="confirmClear()" class="w-full mb-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all active:scale-95 uppercase tracking-tighter shadow-md flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                XOÁ LỰA CHỌN
+            </button>
+
+            <div>
+                <h2 class="font-bold text-amber-800 mb-3 border-b border-amber-200 pb-2 text-sm uppercase" id="nghithuc-section">NGHI THỨC</h2>
+                <div id="main-checklist" class="space-y-1"></div>
+            </div>
+            
+            <div>
+                <h2 class="font-bold text-amber-800 mb-3 border-b border-amber-200 pb-2 text-sm uppercase" id="kinhtung-section">KINH TỤNG</h2>
+                <div id="sutra-checklist" class="space-y-1"></div>
+            </div>
+        </aside>
+    </div>
+
+    <script src="./data.js" defer></script>
+
+    <script>
+        let selectedOrder = [];
+
+        function removeAccents(str) {
+            return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+        }
+
+        function toggleSearch() {
+            const wrapper = document.getElementById('searchWrapper');
+            const btn = document.getElementById('searchBtn');
+            const results = document.getElementById('searchResults');
+            
+            if (wrapper.classList.contains('hidden')) {
+                wrapper.classList.remove('hidden');
+                wrapper.classList.add('flex'); 
+                document.getElementById('searchInput').focus();
+                btn.classList.replace('bg-amber-600', 'bg-red-500');
+            } else {
+                wrapper.classList.add('hidden');
+                wrapper.classList.remove('flex');
+                document.getElementById('searchInput').value = "";
+                results.innerHTML = "";
+                results.classList.add('hidden');
+                btn.classList.replace('bg-red-500', 'bg-amber-600');
+            }
+            
+            // Đóng menu share nếu đang mở
+            document.getElementById('shareMenu').classList.add('hidden');
+        }
+
+        function toggleShareMenu() {
+            const menu = document.getElementById('shareMenu');
+            menu.classList.toggle('hidden');
+            
+            // Đóng khung tìm kiếm nếu đang mở
+            const wrapper = document.getElementById('searchWrapper');
+            if (!wrapper.classList.contains('hidden')) {
+                toggleSearch();
+            }
+        }
+
+        let searchTimeout;
+        function indexSearchData() {
+            if (typeof fullData === 'undefined') return;
+            fullData.forEach(item => {
+                item._searchString = removeAccents(item.title + " " + (item.content || "") + " " + (item.content_open || ""));
+            });
+        }
+
+        function searchDataDebounced() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(searchData, 300);
+        }
+
+        function searchData() {
+            if (typeof fullData === 'undefined') return;
+            const query = removeAccents(document.getElementById('searchInput').value.trim());
+            const resultsContainer = document.getElementById('searchResults');
+            
+            if (query.length < 2) {
+                resultsContainer.innerHTML = "";
+                resultsContainer.classList.add('hidden');
+                return;
+            }
+
+            const matches = fullData.filter(item => item._searchString && item._searchString.includes(query));
+
+            if (matches.length > 0) {
+                resultsContainer.classList.remove('hidden');
+                resultsContainer.innerHTML = matches.map(item => `
+                    <div onclick="goToItem(${item.id})" class="p-3 hover:bg-amber-50 border-b border-amber-100 text-sm text-amber-900 cursor-pointer flex justify-between items-center">
+                        <span class="truncate pr-2">${item.title}</span>
+                        <span class="text-[10px] text-amber-500 font-bold whitespace-nowrap">${item.type === 'sub' ? 'KINH' : 'NGHI THỨC'}</span>
+                    </div>
+                `).join('');
+            } else {
+                resultsContainer.innerHTML = "<div class='p-3 text-xs text-amber-400 italic'>Không tìm thấy...</div>";
+                resultsContainer.classList.remove('hidden');
+            }
+        }
+
+        function initChecklists() {
+            const mainContainer = document.getElementById('main-checklist');
+            const sutraContainer = document.getElementById('sutra-checklist');
+            let mainHtml = "";
+            let sutraHtml = "";
+
+            fullData.forEach(item => {
+                const rowHtml = `
+                    <div id="item-${item.id}" class="transition-all duration-300">
+                        <label class="flex items-center justify-between p-3 hover:bg-amber-50 rounded-lg cursor-pointer border-b border-amber-50">
+                            <div class="flex items-center gap-3">
+                                <input type="checkbox" id="cb-${item.id}" class="w-5 h-5 rounded text-amber-600 focus:ring-amber-500" onchange="toggleSection(${item.id})">
+                                <span class="item-title text-sm text-amber-900">${item.title}</span>
+                            </div>
+                        </label>
+                    </div>`;
+                
+                if (item.type === 'sub') sutraHtml += rowHtml;
+                else mainHtml += rowHtml;
+            });
+
+            mainContainer.innerHTML = mainHtml;
+            sutraContainer.innerHTML = sutraHtml;
+        }
+
+        function syncChecklistsUI() {
+            fullData.forEach(item => {
+                const row = document.getElementById(`item-${item.id}`);
+                const checkbox = document.getElementById(`cb-${item.id}`);
+                if (!row || !checkbox) return;
+
+                const orderIndex = selectedOrder.indexOf(item.id);
+                const isChecked = orderIndex !== -1;
+                
+                checkbox.checked = isChecked;
+                const textSpan = row.querySelector('.item-title');
+                let badge = row.querySelector('.selection-number');
+
+                if (isChecked) {
+                    if(textSpan) {
+                        textSpan.classList.add('text-amber-800', 'font-bold');
+                        textSpan.classList.remove('text-amber-900');
+                    }
+                    if (!badge) {
+                        badge = document.createElement('span');
+                        badge.className = 'selection-number';
+                        row.querySelector('label').appendChild(badge);
+                    }
+                    badge.innerText = orderIndex + 1;
+                } else {
+                    if(textSpan) {
+                        textSpan.classList.remove('text-amber-800', 'font-bold');
+                        textSpan.classList.add('text-amber-900');
+                    }
+                    if (badge) badge.remove();
+                }
+            });
+        }
+            
+        function goToItem(id) {
+            document.getElementById('searchResults').classList.add('hidden');
+            
+            if (!selectedOrder.includes(id)) {
+                toggleSection(id, false);
+            }
+
+            const targetElement = document.getElementById(`item-${id}`);
+            if (targetElement) {
+                targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                targetElement.classList.add('blink-target');
+                setTimeout(() => {
+                    targetElement.classList.remove('blink-target');
+                }, 2500);
+            }
+
+            setTimeout(() => {
+                const previewElement = document.getElementById(`preview-item-${id}`);
+                if (previewElement) {
+                    previewElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 300);
+        }   
+
+        function toggleSection(id, preventScrollJump = true) {
+            const container = document.getElementById(`item-${id}`);
+            const beforeTop = container ? container.getBoundingClientRect().top : 0;
+
+            const index = selectedOrder.indexOf(id);
+            if (index > -1) {
+                selectedOrder.splice(index, 1);
+            } else {
+                const itemData = fullData.find(d => d.id === id);
+                if (itemData && itemData.type === 'ritual_wrapper') {
+                    selectedOrder = selectedOrder.filter(existingId => {
+                        const existingData = fullData.find(d => d.id === existingId);
+                        return !(existingData && existingData.type === 'ritual_wrapper');
+                    });
+                }
+                selectedOrder.push(id);
+            }
+            
+            syncChecklistsUI();
+            updateUI();
+
+            if (preventScrollJump && container) {
+                const afterTop = container.getBoundingClientRect().top;
+                const diff = afterTop - beforeTop;
+                
+                if (Math.abs(diff) > 1) {
+                    const html = document.documentElement;
+                    html.style.scrollBehavior = 'auto'; 
+                    window.scrollBy(0, diff);
+                    
+                    requestAnimationFrame(() => {
+                        html.style.scrollBehavior = '';
+                    });
+                }
+            }
+
+            updateShareableURL(); 
+            saveToLocalStorage();
+        }
+
+        function clearAll() {
+            selectedOrder = [];
+            syncChecklistsUI();
+            updateUI();
+            updateShareableURL(); 
+            saveToLocalStorage();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function updateUI() {
+            const previewArea = document.getElementById('pdf-content');
+            const placeholder = document.getElementById('preview-placeholder');
+
+            const validSelectedItems = selectedOrder
+                .map(id => fullData.find(d => d.id === id))
+                .filter(item => item && (item.content || item.content_open));
+
+            if (validSelectedItems.length === 0) {
+                previewArea.classList.add('hidden');
+                placeholder.classList.remove('hidden');
+                return;
+            }
+
+            placeholder.classList.add('hidden');
+            previewArea.classList.remove('hidden');
+
+            const subContent = validSelectedItems
+                .filter(item => item.type === 'sub')
+                .map(item => `<div id="preview-item-${item.id}">` + item.content + `</div>`)
+                .join('<div style="page-break-after: always; margin: 10px 0;"></div>');
+
+            const hasWrapper = validSelectedItems.some(item => item.type === 'ritual_wrapper');
+            const renderBlocks = [];
+            let wrapperAdded = false;
+
+            validSelectedItems.forEach(item => {
+                if (item.type === 'ritual_wrapper') {
+                    if (!wrapperAdded) {
+                        renderBlocks.push(`<div id="preview-item-${item.id}">` + item.content_open + subContent + item.content_close + `</div>`);
+                        wrapperAdded = true;
+                    } else {
+                        renderBlocks.push(`<div id="preview-item-${item.id}">` + item.content_open + item.content_close + `</div>`);
+                    }
+                } 
+                else if (item.type === 'main') {
+                    renderBlocks.push(`<div id="preview-item-${item.id}">` + item.content + `</div>`);
+                } 
+                else if (item.type === 'sub' && !hasWrapper) {
+                    renderBlocks.push(`<div id="preview-item-${item.id}">` + item.content + `</div>`);
+                }
+            });
+
+            previewArea.innerHTML = renderBlocks.join('<div style="page-break-after: always; margin: 10px 0;"></div>');
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem('tungKinhSelected', JSON.stringify(selectedOrder));
+        }
+
+        function loadState() {
+            const params = new URLSearchParams(window.location.search);
+            const savedOrder = params.get('s'); 
+            
+            if (savedOrder) {
+                selectedOrder = [...new Set(savedOrder.split(',')
+                    .map(id => parseInt(id, 10))
+                    .filter(id => !isNaN(id) && fullData.some(d => d.id === id)))];
+            } else {
+                const localData = localStorage.getItem('tungKinhSelected');
+                if(localData) {
+                    try {
+                        selectedOrder = JSON.parse(localData).filter(id => fullData.some(d => d.id === id));
+                    } catch(e) {}
+                }
+            }
+        }
+
+        function updateShareableURL() {
+            const url = new URL(window.location.href);
+            if (selectedOrder.length > 0) {
+                url.searchParams.set('s', selectedOrder.join(','));
+            } else {
+                url.searchParams.delete('s');
+            }
+            try {
+                window.history.replaceState(null, '', url.toString());
+            } catch(e) {}
+            // --- THÊM ĐOẠN NÀY ĐỂ VẼ QR ĐỘNG ---
+        const finalUrl = window.__APP_HUB__
+            ? 'https://gptlohoi-del.github.io/tungkinh/' + url.search
+            : url.toString();
+        const qrBox = document.getElementById("qrcode-box");
+        if (qrBox) {
+            qrBox.innerHTML = ""; // Xóa mã QR cũ
+            new QRCode(qrBox, {
+                text: finalUrl,
+                width: 220,
+                height: 220,
+                colorDark : "#78350f", // Màu nâu đậm
+                colorLight : "#fffbeb", // Màu nền vàng nhạt
+                correctLevel : QRCode.CorrectLevel.M
+            });
+        }
+        }
+
+        function downloadQR() {
+            const qrBox = document.getElementById("qrcode-box");
+            const img = qrBox.querySelector("img");
+            if (img && img.src) {
+                const link = document.createElement("a");
+                link.href = img.src;
+                link.download = "qrcode-tungkinh.png";
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } else {
+                alert("Mã QR chưa sẵn sàng!");
+            }
+        }
+
+        let currentFontSize = 1.2; 
+
+        function changeFontSize(delta) {
+            currentFontSize = parseFloat((currentFontSize + delta).toFixed(2));
+            if (currentFontSize < 0.5) currentFontSize = 0.5;
+            if (currentFontSize > 3.0) currentFontSize = 3.0; 
+            
+            document.getElementById('font-size-display').innerText = currentFontSize;
+            document.documentElement.style.setProperty('--pre-font-size', currentFontSize + 'rem');
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            try {
+                if (typeof fullData === 'undefined') {
+                    document.getElementById('preview-placeholder').innerHTML = `<p class="text-red-500 font-bold">Lỗi tải dữ liệu. Vui lòng tải lại trang!</p>`;
+                    return;
+                }
+                indexSearchData();
+                initChecklists();
+                loadState();
+                syncChecklistsUI();
+                updateUI(); 
+                updateShareableURL(); 
+            } catch (error) {
+                console.error("Lỗi khởi tạo:", error);
+            }
+        });
+
+        document.getElementById('pdf-content').addEventListener('click', function(e) {
+            const header = e.target.closest('h2, h3, h4');
+            if (!header) return;
+
+            header.classList.toggle('is-collapsed');
+            let next = header.nextElementSibling;
+            while (next && !['H1', 'H2', 'H3', 'H4'].includes(next.tagName)) {
+                next.classList.toggle('section-hidden');
+                next = next.nextElementSibling;
+            }
+        });
+
+        function toggleModal(id) {
+            const modal = document.getElementById(id);
+            if (modal) modal.classList.toggle('hidden');
+        }
+
+        function scrollToSection(id) {
+            const element = document.getElementById(id);
+            if(element) {
+                element.scrollIntoView({ behavior: 'smooth' });
+                toggleModal('modal-list');
+            }
+        }
+
+        function confirmClear() {
+            if(confirm("Bạn có chắc chắn muốn xoá tất cả lựa chọn không?")) {
+                clearAll();
+                toggleModal('modal-list');
+            }
+        }
+
+        function fallbackCopyTextToClipboard(text) {
+            let textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                alert("Đã copy đường dẫn: \n" + text);
+            } catch (err) {
+                console.error('Lỗi Fallback Copy', err);
+                alert("Trình duyệt không hỗ trợ copy tự động!");
+            }
+            textArea.remove();
+        }
+
+        function copyToClipboard() {
+            const linkToCopy = window.__APP_HUB__
+            ? 'https://gptlohoi-del.github.io/tungkinh/' + window.location.search
+            : window.location.href;
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(linkToCopy).then(() => {
+                    alert("Đã copy đường dẫn: \n" + linkToCopy);
+                }).catch(err => {
+                    fallbackCopyTextToClipboard(linkToCopy);
+                });
+            } else {
+                fallbackCopyTextToClipboard(linkToCopy);
+            }
+            // Đóng menu share sau khi copy
+            document.getElementById('shareMenu').classList.add('hidden');
+        }
+
+        function openQRModal() {
+            document.getElementById('qrModal').classList.remove('hidden');
+            // Đóng menu share sau khi mở QR
+            document.getElementById('shareMenu').classList.add('hidden');
+        }
+
+        function closeQRModal() {
+            document.getElementById('qrModal').classList.add('hidden');
+        }
+
+        window.addEventListener('click', function(event) {
+            const modalList = document.getElementById('modal-list');
+            const wrapper = document.getElementById('searchWrapper');
+            const btnSearch = document.getElementById('searchBtn');
+            const shareMenu = document.getElementById('shareMenu');
+            const btnShare = document.getElementById('shareBtn');
+
+            if (event.target == modalList) modalList.classList.add('hidden');
+            
+            // Xử lý đóng Search khi click ngoài
+            if (wrapper && !wrapper.classList.contains('hidden') && btnSearch && !btnSearch.contains(event.target) && !wrapper.contains(event.target)) {
+                toggleSearch(); 
+            }
+            
+            // Xử lý đóng Share Menu khi click ngoài
+            if (shareMenu && !shareMenu.classList.contains('hidden') && btnShare && !btnShare.contains(event.target) && !shareMenu.contains(event.target)) {
+                shareMenu.classList.add('hidden');
+            }
+        });
+
+        window.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                const modalList = document.getElementById('modal-list');
+                const qrModal = document.getElementById('qrModal');
+                const wrapper = document.getElementById('searchWrapper');
+                const shareMenu = document.getElementById('shareMenu');
+
+                if (modalList) modalList.classList.add('hidden');
+                if (qrModal) qrModal.classList.add('hidden');
+                if (wrapper && !wrapper.classList.contains('hidden')) toggleSearch();
+                if (shareMenu && !shareMenu.classList.contains('hidden')) shareMenu.classList.add('hidden');
+            }
+        });
+
+        window.addEventListener('beforeunload', function (e) {
+            if (selectedOrder.length > 0) {
+                e.preventDefault();
+                e.returnValue = 'NẾU BẠN TẢI LẠI TRANG, CÁC BÀI KINH ĐÃ CHỌN SẼ BỊ MẤT. BẠN CÓ CHẮC CHẮN KHÔNG?';
+            }
+        });
+
+    </script>
+    
+    <!-- Float Container: Tìm kiếm, In, Share (Giữa cạnh dưới) -->
+    <div class="no-print fixed bottom-1 left-1/2 -translate-x-1/2 z-[100] flex flex-row items-center gap-3">
+        <!-- Search -->
+        <div class="relative flex flex-col items-center">
+            <div id="searchWrapper" class="hidden absolute bottom-14 flex-col items-center gap-2">
+                <input type="text" id="searchInput" oninput="searchDataDebounced()" placeholder="Tìm tên hoặc nội dung kinh..." 
+                       class="w-72 md:w-80 p-3 bg-white text-amber-900 rounded-2xl shadow-xl border-2 border-amber-600 outline-none">
+                <div id="searchResults" class="w-72 md:w-80 max-h-48 overflow-y-auto bg-white rounded-xl shadow-xl border border-amber-200 hidden"></div>
+            </div>
+            <button aria-label="Tìm kiếm" onclick="toggleSearch()" id="searchBtn" class="bg-amber-600 text-white p-2.5 rounded-full shadow-lg active:scale-90 transition-all border-2 border-white w-12 h-12 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            </button>
+        </div>
+
+        <!-- In PDF Icon -->
+        <button aria-label="In tài liệu" onclick="window.print()" class="bg-emerald-600 text-white p-2.5 rounded-full shadow-lg active:scale-90 transition-all border-2 border-white flex items-center justify-center w-12 h-12">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
+        </button>
+        
+        <!-- Nút Share (Thay cho nút Copy cũ) -->
+        <div class="relative flex flex-col items-center">
+            <!-- Menu tùy chọn share (Bật lên) -->
+            <div id="shareMenu" class="hidden absolute bottom-14 flex-col bg-white rounded-xl shadow-xl border border-amber-200 overflow-hidden w-40">
+                <button onclick="copyToClipboard()" class="w-full px-4 py-3 text-sm font-semibold text-amber-900 hover:bg-amber-50 flex items-center gap-2 border-b border-gray-100">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                    Copy Link
+                </button>
+                <button onclick="openQRModal()" class="w-full px-4 py-3 text-sm font-semibold text-amber-900 hover:bg-amber-50 flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" /></svg>
+                    Mã QR
+                </button>
+            </div>
+            <button aria-label="Chia sẻ" onclick="toggleShareMenu()" id="shareBtn" class="bg-amber-600 text-white p-2.5 rounded-full shadow-lg active:scale-90 transition-all border-2 border-white flex items-center justify-center w-12 h-12">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" /></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Nút Menu Danh mục (Góc dưới trái Mobile) -->
+    <div class="mobile-only-btn no-print fixed bottom-0 left-0 z-[100]">
+        <button aria-label="Danh mục" onclick="toggleModal('modal-list')" class="bg-amber-600 text-white p-4 rounded-full shadow-lg active:scale-90 transition-all border-2 border-white">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+        </button>
+    </div>
+
+    <!-- Modal Danh mục nhanh -->
+    <div id="modal-list" class="no-print fixed inset-0 bg-black/50 z-[110] hidden backdrop-blur-sm flex items-end justify-center">
+        <div class="bg-white w-full max-w-md rounded-t-3xl p-6 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-amber-100 pb-4">
+                <h3 class="font-extrabold text-amber-900 tracking-tighter">DANH MỤC NHANH</h3>
+                <button aria-label="Đóng danh mục" onclick="toggleModal('modal-list')" class="w-8 h-8 flex items-center justify-center bg-amber-50 rounded-full text-amber-500 text-xl">&times;</button>
+            </div>
+            <div class="grid grid-cols-1 gap-3 py-2">
+                <button onclick="scrollToSection('nghithuc-section')" class="flex items-center gap-3 p-4 bg-amber-50 text-amber-800 rounded-2xl font-bold text-left active:bg-amber-100">
+                    <span>📜</span> NGHI THỨC
+                </button>
+                <button onclick="scrollToSection('kinhtung-section')" class="flex items-center gap-3 p-4 bg-amber-50 text-amber-800 rounded-2xl font-bold text-left active:bg-amber-100">
+                    <span>📖</span> KINH TỤNG
+                </button>
+                <div class="h-[1px] bg-amber-100 my-1"></div>
+                <button onclick="confirmClear()" class="flex items-center gap-3 p-4 bg-red-50 text-red-600 rounded-2xl font-bold text-left active:bg-red-100">
+                    <span>🗑️</span> XOÁ TẤT CẢ LỰA CHỌN
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Float Container: Cuộn đầu/cuối trang (Góc dưới phải) -->
+    <div class="no-print fixed bottom-2 right-2 z-[100] flex flex-col gap-2">
+        <button aria-label="Về đầu trang" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" 
+                class="bg-white text-amber-700 p-2.5 rounded-full shadow-md border-2 border-amber-600 hover:bg-amber-50 active:scale-90 transition-all duration-300">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" /></svg>
+        </button>
+        <button aria-label="Xuống cuối trang" onclick="window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'})" 
+                class="bg-white text-amber-700 p-2.5 rounded-full shadow-md border-2 border-amber-600 hover:bg-amber-50 active:scale-90 transition-all duration-300">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+        </button>
+    </div>
+
+    <!-- Modal Phóng to QR Code -->
+    <div id="qrModal" class="hidden no-print fixed inset-0 z-[100] bg-black/60 flex flex-col items-center justify-center backdrop-blur-sm transition-opacity" onclick="closeQRModal()">
+        <div class="bg-white p-6 rounded-2xl shadow-2xl flex flex-col items-center gap-4 max-w-[90vw]" onclick="event.stopPropagation()">
+            <div class="flex justify-between w-full items-center mb-1">
+                <h3 class="font-bold text-amber-900 text-lg uppercase tracking-tighter">Mã QR Trang Web</h3>
+                <button aria-label="Đóng QR" onclick="closeQRModal()" class="text-amber-400 hover:text-red-500 transition-colors bg-amber-50 rounded-full p-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <!-- Khung chứa mã QR động -->
+            <div id="qrcode-box" class="border border-amber-200 p-4 rounded-xl bg-amber-50 flex justify-center items-center w-full"></div>
+            
+            <!-- Nút Tải QR mới -->
+            <button onclick="downloadQR()" class="mt-2 w-full flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-4 rounded-xl transition-all active:scale-95 shadow-md">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                TẢI MÃ QR VỀ MÁY
+            </button>
+            
+            </div>
+            
+            
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                TẢI MÃ QR VỀ MÁY
+            </a>
+        </div>
+    </div>
+    
+</body>
+</html>

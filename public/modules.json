@@ -9,6 +9,14 @@
       "description": "Nghe kinh, phụ đề và luyện đọc"
     },
     {
+      "id": "linktong",
+      "name": "Liên kết tổng hợp",
+      "entry": "index.html",
+      "version": "1.0",
+      "icon": "🔗",
+      "description": "Danh mục các liên kết hữu ích (liên kết ngoài cần mạng)"
+    },
+    {
       "id": "smoodri",
       "name": "Độ êm ái lái xe",
       "entry": "index.html",
@@ -23,6 +31,22 @@
       "version": "1.0",
       "icon": "🎹",
       "description": "Luyện tập bản nhạc và đọc MusicXML"
+    },
+    {
+      "id": "thoisao",
+      "name": "Thời Sao",
+      "entry": "index.html",
+      "version": "1.0",
+      "icon": "🎶",
+      "description": "Nghe nhạc và xem phụ đề offline"
+    },
+    {
+      "id": "tungkinh",
+      "name": "Tụng Kinh",
+      "entry": "index.html",
+      "version": "1.0",
+      "icon": "📖",
+      "description": "Tụng kinh, chọn bài và lưu danh sách offline"
     }
   ]
 }

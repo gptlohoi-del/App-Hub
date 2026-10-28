@@ -72,6 +72,19 @@ function openModule(mod) {
   app.replaceChildren(view);
 }
 
+// Route bundled links from the Links module to other offline modules.
+// Only messages from the active, same-origin iframe are accepted.
+window.addEventListener('message', (event) => {
+  if (event.origin !== window.location.origin || !active || active.id !== 'linktong') return;
+  const frame = document.querySelector('.module-frame');
+  if (!frame || event.source !== frame.contentWindow) return;
+  if (event.data?.type !== 'APPHUB_OPEN_MODULE') return;
+  const id = event.data.id;
+  if (typeof id !== 'string') return;
+  const target = modules.find(mod => mod.id === id);
+  if (target) openModule(target);
+});
+
 async function getRemoteManifest() {
   if (Capacitor.isNativePlatform()) {
     const response = await CapacitorHttp.get({ url: `${UPDATE_URL}?t=${Date.now()}`, connectTimeout: 5000, readTimeout: 5000 });

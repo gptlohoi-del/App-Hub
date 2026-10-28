@@ -47,3 +47,33 @@
 @media (max-width:430px) {
   #native-motion-view { max-width:100%; order:3; flex-basis:100%; }
 }
+
+/* SmooDri PiP: only App Hub APK can enter Android PiP. */
+.viewer-topbar { gap: 8px; }
+.viewer-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pip-button { margin-left: auto; flex-shrink: 0; border: 0; border-radius: 8px;
+  padding: 7px 9px; color: #fff; background: #355fd1; font-size: 12px; font-weight: 700; }
+.pip-summary { display: none; }
+.module-view.pip-mode { position: relative; background: #0d1a2d; overflow: hidden; }
+.module-view.pip-mode .viewer-topbar { display: none; }
+.module-view.pip-mode .module-frame { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.module-view.pip-mode .pip-summary {
+  position: absolute; inset: 0; z-index: 10;
+  display: flex; flex-direction: column; justify-content: space-evenly;
+  color: #f5f8fe; background: #0e1c33; padding: 5px 8px;
+  pointer-events: none; font-family: system-ui, sans-serif;
+}
+.pip-head { display: flex; align-items: center; justify-content: space-between; gap: 5px; font-size: 12px; }
+.pip-head span { font-size: 9px; color: #a7e3ce; max-width: 50%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.pip-score-row { display: flex; justify-content: space-between; align-items: center; font-size: 9px; color: #a0b5d4; }
+.pip-score-row strong { color: #79e5ad; font-size: 25px; line-height: 1; }
+.pip-data { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px;
+  font-size: 8px; text-align: center; }
+.pip-data span { display: flex; flex-direction: column; background: #213452; border-radius: 4px; padding: 2px 1px; }
+.pip-data b { color: #fff; font-size: 10px; }
+
+/* PiP and background status share a compact top bar. */
+.viewer-topbar {height:auto; min-height:calc(51px + env(safe-area-inset-top)); flex-wrap:wrap; padding-bottom:7px;}
+.pip-button { margin-left:auto; }
+#native-motion-view {max-width:100%; flex:1 0 100%;}
+.module-view.pip-mode .native-motion-panel {display:none !important;}

@@ -37,7 +37,17 @@ function createHome() {
   const statusBar = el('div', { className: 'status', id: 'status', role: 'status', 'aria-live': 'polite' }, 'Có thể sử dụng khi không có mạng');
   const sync = el('button', { className: 'sync', type: 'button', id: 'syncButton' }, '↻  Kiểm tra cập nhật');
   sync.addEventListener('click', () => void checkUpdate(true));
-  header.append(top, statusBar, sync);
+  header.append(top);
+
+const updateSection = el('section', {
+  className: 'update-section'
+});
+
+updateSection.append(
+  statusBar,
+  sync,
+  createDiagnosticPanel()
+);
   const heading = el('div', { className: 'section-heading' });
   heading.append(el('h2', {}, 'Tính năng'), el('span', { className: 'count' }, `${modules.length} ứng dụng`));
   const grid = el('div', { className: 'grid' });

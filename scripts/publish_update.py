@@ -46,7 +46,7 @@ def main():
             prior = json.load(result)
     except (urllib.error.URLError, ValueError, TimeoutError):
         pass
-    changed = prior is None or prior.get('sha256') != bundle_hash
+    changed = prior is None or prior.get('bundleSha256') != bundle_hash
     if changed:
         run_no = int(os.getenv('GITHUB_RUN_NUMBER') or '1')
         version = f'1.0.{run_no}'
@@ -57,10 +57,16 @@ def main():
         with zipfile.ZipFile(out, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=6, allowZip64=True) as archive:
             for file in all_files:
                 archive.write(file, file.relative_to(DIST).as_posix())
+        # The updater expects a checksum of the ZIP it actually downloads.
+        zip_hash = hashlib.sha256()
+        with out.open('rb') as archive_file:
+            while chunk := archive_file.read(1024 * 1024):
+                zip_hash.update(chunk)
         manifest = {
             'version': version,
             'url': f'{URL_BASE}/{zipname}',
-            'sha256': bundle_hash,
+            'sha256': zip_hash.hexdigest(),
+            'bundleSha256': bundle_hash,
             'sizeBytes': out.stat().st_size,
         }
         (updates / 'latest.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')

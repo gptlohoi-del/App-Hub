@@ -627,7 +627,7 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+if (!window.__APP_HUB__ && 'serviceWorker' in navigator && location.protocol !== 'file:') {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 }
 bindSliders();

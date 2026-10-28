@@ -1,0 +1,28 @@
+{
+  "modules": [
+    {
+      "id": "kinhtest2",
+      "name": "Kinh Chánh Tinh Tấn",
+      "entry": "index.html",
+      "version": "1.0",
+      "icon": "🎧",
+      "description": "Nghe kinh, phụ đề và luyện đọc"
+    },
+    {
+      "id": "smoodri",
+      "name": "Độ êm ái lái xe",
+      "entry": "index.html",
+      "version": "1.0",
+      "icon": "🚘",
+      "description": "Đo độ êm ái và cảm biến chuyển động"
+    },
+    {
+      "id": "tapluyenpiano",
+      "name": "Tập luyện Piano",
+      "entry": "index.html",
+      "version": "1.0",
+      "icon": "🎹",
+      "description": "Luyện tập bản nhạc và đọc MusicXML"
+    }
+  ]
+}

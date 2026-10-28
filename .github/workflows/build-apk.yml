@@ -94,3 +94,52 @@ jobs:
               exit 1
             fi
           done
+
+          KEYSTORE_PATH="$RUNNER_TEMP/apphub-release.jks"
+          trap 'rm -f "$KEYSTORE_PATH" "$RUNNER_TEMP/apphub-aligned.apk"' EXIT
+          printf '%s' "$APPHUB_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          if [ -z "$SDK_ROOT" ] || [ ! -d "$SDK_ROOT/build-tools" ]; then
+            echo '::error::Android SDK Build Tools were not found.'
+            exit 1
+          fi
+          BUILD_TOOLS="$(find "$SDK_ROOT/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
+          UNSIGNED_APK="android/app/build/outputs/apk/release/app-release-unsigned.apk"
+          if [ ! -s "$UNSIGNED_APK" ]; then
+            echo '::error::Unsigned release APK is missing.'
+            exit 1
+          fi
+
+          mkdir -p signed
+          "$BUILD_TOOLS/zipalign" -P 16 -f 4 \
+            "$UNSIGNED_APK" "$RUNNER_TEMP/apphub-aligned.apk"
+
+          "$BUILD_TOOLS/apksigner" sign \
+            --ks "$KEYSTORE_PATH" \
+            --ks-type JKS \
+            --ks-key-alias apphub \
+            --ks-pass env:APPHUB_KEYSTORE_PASSWORD \
+            --key-pass env:APPHUB_KEY_PASSWORD \
+            --out signed/App-Hub-release.apk \
+            "$RUNNER_TEMP/apphub-aligned.apk"
+
+          "$BUILD_TOOLS/zipalign" -c -P 16 4 signed/App-Hub-release.apk
+          "$BUILD_TOOLS/apksigner" verify --verbose --print-certs signed/App-Hub-release.apk
+          echo '::notice::APK was signed and verified successfully.'
+          ls -lh signed/App-Hub-release.apk
+
+      - name: VERIFY signed APK file before upload
+        run: |
+          set -euo pipefail
+          test -s signed/App-Hub-release.apk || { echo '::error::Signed APK missing or empty'; exit 1; }
+          echo 'Signed APK is ready for artifact upload:'
+          ls -lh signed/App-Hub-release.apk
+
+      - name: UPLOAD signed release APK to GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: App-Hub-release-APK
+          path: signed/App-Hub-release.apk
+          if-no-files-found: error
+          retention-days: 30

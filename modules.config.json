@@ -4,7 +4,7 @@
   "repositories": [
     {
       "repo": "smoodri",
-      "name": "Độ êm ái lái xe",
+      "name": "Hỗ trợ lái xe",
       "icon": "🚘",
       "description": "Đo độ êm ái và cảm biến chuyển động"
     },
@@ -22,21 +22,21 @@
     },
     {
       "repo": "linktong",
-      "name": "Liên kết tổng hợp",
+      "name": "Link tổng hợp",
       "icon": "🔗",
       "description": "Danh mục các liên kết hữu ích (liên kết ngoài cần mạng)"
     },
     {
       "repo": "thoisao",
-      "name": "Thời Sao",
+      "name": "Tập luyện sáo",
       "icon": "🎶",
-      "description": "Nghe nhạc và xem phụ đề offline"
+      "description": "Dành để tập luyện nhạc cụ đơn âm"
     },
     {
       "repo": "tungkinh",
       "name": "Tụng Kinh",
       "icon": "📖",
-      "description": "Tụng kinh, chọn bài và lưu danh sách offline"
+      "description": "Danh sách các bài kinh tụng"
     }
   ],
   "autoDiscoverByTopic": true

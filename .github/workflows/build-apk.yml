@@ -1,4 +1,4 @@
-name: 1. Build APK (Android)
+name: 1. Build APK (Android Release Signed)
 
 on:
   workflow_dispatch:
@@ -9,39 +9,88 @@ permissions:
 jobs:
   android:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 50
     steps:
-      - name: Checkout App-Hub
+      - name: Checkout App Hub
         uses: actions/checkout@v4
-      - name: Node 22
+
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Java 21
+
+      - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '21'
+
       - name: Install dependencies
         run: npm install --no-audit --no-fund
-      - name: Collect pinned and topic-tagged GitHub apps
+
+      - name: Collect GitHub PWA modules
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 scripts/collect_modules.py
+
       - name: Build offline Web bundle
         run: npm run build
-      - name: Create and sync Android project
+
+      - name: Generate and sync Android project
         run: |
           npx cap add android
           npx cap sync android
-      - name: Build debug APK
+
+      - name: Set Android versionCode and versionName
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          import re
+
+          path = Path('android/app/build.gradle')
+          content = path.read_text(encoding='utf-8')
+          version = int(os.environ['GITHUB_RUN_NUMBER'])
+
+          content, n_code = re.subn(
+              r'(?m)^(\s*versionCode)\s+\d+\s*$',
+              lambda match: f'{match.group(1)} {version}',
+              content,
+              count=1,
+          )
+          content, n_name = re.subn(
+              r'(?m)^(\s*versionName)\s+["\'][^"\']+["\']\s*$',
+              lambda match: f'{match.group(1)} "1.0.{version}"',
+              content,
+              count=1,
+          )
+          if n_code != 1 or n_name != 1:
+              raise RuntimeError('Could not set Android app version in build.gradle')
+          path.write_text(content, encoding='utf-8')
+          print(f'Android release: versionCode={version}, versionName=1.0.{version}')
+          PY
+
+      - name: Build unsigned release APK
         run: |
           chmod +x android/gradlew
           cd android
-          ./gradlew assembleDebug
-      - name: Downloadable APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: App-Hub-debug-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 30
+          ./gradlew --no-daemon assembleRelease
+
+      - name: Sign and verify release APK
+        env:
+          APPHUB_KEYSTORE_BASE64: ${{ secrets.APPHUB_KEYSTORE_BASE64 }}
+          APPHUB_KEYSTORE_PASSWORD: ${{ secrets.APPHUB_KEYSTORE_PASSWORD }}
+          APPHUB_KEY_PASSWORD: ${{ secrets.APPHUB_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+
+          for secret_name in APPHUB_KEYSTORE_BASE64 APPHUB_KEYSTORE_PASSWORD APPHUB_KEY_PASSWORD; do
+            if [ -z "${!secret_name:-}" ]; then
+              echo "::error::Missing GitHub Actions Secret: $secret_name"
+              exit 1
+            fi
+          done
+
+          KEYSTORE_PATH="$RUNNER_TEMP/apphub-release.jks"
+          trap 'rm -f "$KEYSTORE_PATH" "$RUNNER_TEMP/apphub-aligned.apk"' EXIT

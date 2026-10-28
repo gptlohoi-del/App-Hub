@@ -63,7 +63,13 @@ updateSection.append(
   }
   if (!modules.length) grid.append(el('p', {}, 'Chưa có module nào trong bản đóng gói.'));
   const footer = el('p', { className: 'footer' }, 'Dùng được khi mất mạng. Nếu có mạng, App Hub tự kiểm tra bản cập nhật khi mở.');
-  app.append(header, heading, grid, footer);
+  app.append(
+  header,
+  heading,
+  grid,
+  footer,
+  updateSection
+);
 }
 
 function openModule(mod) {

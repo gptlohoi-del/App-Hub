@@ -1,10 +1,109 @@
 import './style.css';
-import { Capacitor, CapacitorHttp } from '@capacitor/core';
+import { Capacitor, CapacitorHttp, registerPlugin } from '@capacitor/core';
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 
 const BASE = import.meta.env.BASE_URL;
 const UPDATE_URL = 'https://gptlohoi-del.github.io/App-Hub/updates/latest.json';
 const app = document.getElementById('app');
+
+// Android FGS belongs to App Hub, not to an individual Web module. A normal
+// browser has no access to this plugin; the original SmooDri PWA is unchanged.
+const SmooDriMotion = registerPlugin('SmooDriMotion');
+const AppHubPiP = registerPlugin('AppHubPiP');
+const hasNativeMotion = Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('SmooDriMotion');
+const hasNativePiP = Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('AppHubPiP');
+let nativeMotionStatus = null;
+let nativeMotionError = '';
+let lastAutoPipSetting = null;
+let pipIsActive = false;
+let pipSummaryTimer = null;
+
+function safeNativeError(error) {
+  return String(error?.message || error || 'Không xác định').slice(0, 180);
+}
+function motionSummary(s) {
+  if (!s?.running) return 'Đo nền chưa chạy';
+  return `Đang đo nền · Điểm ~${s.score ?? '--'} · GA ${s.ga ?? 0}% · Phanh ${s.phanh ?? 0}% · Cua ${s.cua ?? 0}% · Xóc ${s.xoc ?? 0}%`;
+}
+// Automatic Android PiP is active only when the SmooDri module is open AND
+// the user has started the native sensor session. It is never enabled for other modules.
+function syncAutoPiP() {
+  if (!hasNativePiP) return;
+  const enable = Boolean(active?.id === 'smoodri' && nativeMotionStatus?.running);
+  if (enable === lastAutoPipSetting) return;
+  lastAutoPipSetting = enable;
+  void AppHubPiP.setAutoEnter({ enabled: enable }).catch((err) => {
+    lastAutoPipSetting = null;
+    console.warn('PiP auto mode:', safeNativeError(err));
+  });
+}
+function renderMotionStatus() {
+  const summary = motionSummary(nativeMotionStatus);
+  for (const id of ['native-motion-home', 'native-motion-view']) {
+    const panel = document.getElementById(id);
+    if (!panel) continue;
+    if (id === 'native-motion-home') panel.hidden = !nativeMotionStatus?.running && !nativeMotionError && !/thất bại|Không đăng ký|không có gia tốc/i.test(nativeMotionStatus?.status || '');
+    const label = panel.querySelector('.native-motion-description');
+    if (label) label.textContent = nativeMotionError || (!nativeMotionStatus?.running && nativeMotionStatus?.status !== 'Đã dừng đo nền' ? nativeMotionStatus?.status : summary);
+    const stop = panel.querySelector('.native-motion-stop');
+    if (stop) stop.hidden = !nativeMotionStatus?.running;
+  }
+  syncAutoPiP();
+  refreshPipSummary();
+}
+async function refreshNativeMotion() {
+  if (!hasNativeMotion) return;
+  try {
+    nativeMotionStatus = await SmooDriMotion.getStatus();
+    renderMotionStatus();
+  } catch (error) {
+    nativeMotionError = 'Không đọc được cảm biến Android: ' + safeNativeError(error);
+    renderMotionStatus();
+  }
+}
+async function startNativeMotion(comfort = 60) {
+  if (!hasNativeMotion) return;
+  nativeMotionError = '';
+  try {
+    await SmooDriMotion.start({comfort: Math.max(20, Math.min(100, Number(comfort) || 60))});
+    await refreshNativeMotion();
+  } catch (error) {
+    nativeMotionError = 'Không bật được đo nền: ' + safeNativeError(error);
+    renderMotionStatus();
+  }
+}
+async function stopNativeMotion() {
+  if (!hasNativeMotion) return;
+  nativeMotionError = '';
+  try {
+    await SmooDriMotion.stop();
+    // Android processes stop action asynchronously.
+    await refreshNativeMotion();
+  } catch (error) {
+    nativeMotionError = 'Không dừng được đo nền: ' + safeNativeError(error);
+    renderMotionStatus();
+  }
+}
+function nativeMotionPanel(id) {
+  const box = el('div', { className: 'native-motion-panel', id });
+  const label = el('span', { className: 'native-motion-description' }, 'Đo nền chưa chạy');
+  const stop = el('button', { className: 'native-motion-stop', type: 'button' }, 'DỪNG ĐO NỀN');
+  stop.hidden = true;
+  stop.addEventListener('click', () => void stopNativeMotion());
+  box.append(label, stop);
+  return box;
+}
+// The offline SmooDri copy posts only to its SAME-ORIGIN parent. No other repo
+// can start the sensor service by sending a forged message from another frame.
+window.addEventListener('message', (event) => {
+  if (event.origin !== window.location.origin || active?.id !== 'smoodri') return;
+  const frame = document.querySelector('.module-frame');
+  if (!frame || event.source !== frame.contentWindow) return;
+  const type = event.data?.type;
+  if (type === 'APPHUB_SMOODRI_START_NATIVE') void startNativeMotion(event.data.comfort);
+  else if (type === 'APPHUB_SMOODRI_STOP_NATIVE') void stopNativeMotion();
+});
+
 let modules = [];
 let active = null;
 let updating = false;
@@ -166,6 +265,8 @@ function status(message, type = '') {
 }
 
 function createHome() {
+  setPipMode(false);
+  syncAutoPiP();
   app.replaceChildren();
   const header = el('header', { className: 'header' });
   const top = el('div', { className: 'brand' });
@@ -185,7 +286,7 @@ function createHome() {
     statusBar,
     sync,
     createDiagnosticPanel(),
-    el('p', { className: 'build-marker' }, 'Giao diện: OTA-DIAG-v4 · 28/10/2026')
+    el('p', { className: 'build-marker' }, 'Giao diện: PiP-FGS-v2 · 28/10/2026')
   );
   const heading = el('div', { className: 'section-heading' });
   heading.append(el('h2', {}, 'Tính năng'), el('span', { className: 'count' }, `${modules.length} ứng dụng`));
@@ -202,24 +303,103 @@ function createHome() {
   }
   if (!modules.length) grid.append(el('p', {}, 'Chưa có module nào trong bản đóng gói.'));
   const footer = el('p', { className: 'footer' }, 'Dùng được khi mất mạng. Nếu có mạng, App Hub tự kiểm tra bản cập nhật khi mở.');
-  app.append(header, heading, grid, footer, updateSection);
+  const motionBox = nativeMotionPanel('native-motion-home');
+  motionBox.hidden = true;
+  app.append(header, heading, grid, motionBox, footer, updateSection);
+  renderMotionStatus();
   showDiagnostics();
 }
 
+// Android Picture-in-Picture reuses the same App Hub Activity/WebView.
+// Sensor samples are produced by the native foreground service, NOT by this timer.
+function pipText(id, value) {
+  const target = document.getElementById(id);
+  if (target) target.textContent = String(value);
+}
+function refreshPipSummary() {
+  if (!pipIsActive || active?.id !== 'smoodri') return;
+  const data = nativeMotionStatus;
+  const ready = Boolean(data?.running);
+  pipText('pip-status', ready ? (data.status || 'ĐANG ĐO') : 'ĐÃ DỪNG');
+  pipText('pip-score', ready ? `≈${data.score ?? '--'}` : '--');
+  pipText('pip-ga', ready ? `${data.ga ?? 0}%` : '--');
+  pipText('pip-brake', ready ? `${data.phanh ?? 0}%` : '--');
+  pipText('pip-turn', ready ? `${data.cua ?? 0}%` : '--');
+  pipText('pip-bump', ready ? `${data.xoc ?? 0}%` : '--');
+}
+function setPipMode(enabled) {
+  const view = document.querySelector('.module-view');
+  pipIsActive = Boolean(enabled && active?.id === 'smoodri' && view);
+  if (view) view.classList.toggle('pip-mode', pipIsActive);
+  if (pipSummaryTimer) clearInterval(pipSummaryTimer);
+  pipSummaryTimer = null;
+  if (pipIsActive) {
+    refreshPipSummary();
+    pipSummaryTimer = setInterval(refreshPipSummary, 1100);
+  }
+}
+function makePipSummary() {
+  const summary = el('div', { className: 'pip-summary', 'aria-label': 'SmooDri thu nhỏ' });
+  summary.innerHTML = `
+    <div class="pip-head"><strong>🚘 SmooDri</strong><span id="pip-status">ĐANG ĐO</span></div>
+    <div class="pip-score-row"><span>ĐIỂM THAM KHẢO</span><strong id="pip-score">--</strong></div>
+    <div class="pip-data">
+      <span>GA <b id="pip-ga">--</b></span>
+      <span>PHANH <b id="pip-brake">--</b></span>
+      <span>CUA <b id="pip-turn">--</b></span>
+      <span>Ổ GÀ <b id="pip-bump">--</b></span>
+    </div>`;
+  return summary;
+}
+window.addEventListener('apphub:native-pip', (event) => {
+  setPipMode(Boolean(event.detail?.active));
+});
+async function enterSmoodriPiP() {
+  if (active?.id !== 'smoodri') return;
+  if (!hasNativePiP) {
+    alert('Bản APK đang chạy chưa tích hợp PiP. Cần cài APK nền tảng mới.');
+    return;
+  }
+  if (!nativeMotionStatus?.running) {
+    alert('Hãy nhấn BẮT ĐẦU trong SmooDri, đợi đo nền hoạt động rồi mới thu nhỏ.');
+    return;
+  }
+  try {
+    const { supported } = await AppHubPiP.isSupported();
+    if (!supported) throw new Error('Thiết bị không hỗ trợ PiP hoặc PiP bị tắt trong cài đặt Android.');
+    setPipMode(true); // Prepare compact screen before native transition.
+    await AppHubPiP.enter();
+  } catch (error) {
+    setPipMode(false);
+    alert('Không mở được PiP: ' + safeNativeError(error));
+  }
+}
+
 function openModule(mod) {
+  setPipMode(false);
   active = mod;
+  syncAutoPiP();
   const view = el('div', { className: 'module-view' });
   const bar = el('div', { className: 'viewer-topbar' });
   const back = el('button', { className: 'back', type: 'button' }, '‹  App Hub');
-  back.addEventListener('click', () => { active = null; createHome(); });
+  back.addEventListener('click', () => { setPipMode(false); active = null; syncAutoPiP(); createHome(); });
   bar.append(back, el('span', { className: 'viewer-title' }, mod.name));
+  if (mod.id === 'smoodri') {
+    // The Android PiP bridge is shared by App Hub and only activated on user action.
+    const pipButton = el('button', { className: 'pip-button', type: 'button' }, '◱ Thu nhỏ PiP');
+    pipButton.addEventListener('click', () => void enterSmoodriPiP());
+    bar.append(pipButton, nativeMotionPanel('native-motion-view'));
+  }
   const frame = el('iframe', {
     className: 'module-frame', title: mod.name,
     src: `${BASE}modules/${encodeURIComponent(mod.id)}/${encodeURIComponent(mod.entry || 'index.html')}`,
     allow: 'accelerometer; gyroscope; autoplay; fullscreen; microphone',
   });
   view.append(bar, frame);
+  if (mod.id === 'smoodri' && hasNativePiP) view.append(makePipSummary());
   app.replaceChildren(view);
+  renderMotionStatus();
+  if (mod.id === 'smoodri') void refreshNativeMotion();
 }
 
 // Route bundled links from the Links module to other offline modules.
@@ -375,6 +555,15 @@ async function boot() {
     });
   }
   // Các tính năng offline phải mở được trước khi kiểm tra mạng.
+  void refreshNativeMotion();
+  // Poll only a tiny status payload: actual sensor acquisition and scoring run
+  // on the Android service's sensor thread even when this WebView is suspended.
+  if (hasNativeMotion) {
+    setInterval(() => void refreshNativeMotion(), 1500);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') void refreshNativeMotion();
+    });
+  }
   void checkUpdate(false);
 }
 boot();

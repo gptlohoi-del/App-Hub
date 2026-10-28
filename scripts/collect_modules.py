@@ -174,6 +174,21 @@ def transform_module_html(dest, repo, bundled_repos):
         text = text.replace('const linkToCopy = window.location.href;', '''const linkToCopy = window.__APP_HUB__
             ? 'https://gptlohoi-del.github.io/tungkinh/' + window.location.search
             : window.location.href;''')
+    if repo == 'smoodri':
+        # The ORIGINAL SmooDri repo is unchanged. Patch its offline copy every build.
+        # Disable the PWA Service Worker only in the APK copy; OTA manages its files.
+        app_js = dest / 'app.js'
+        if app_js.is_file():
+            code = app_js.read_text(encoding='utf-8')
+            code = code.replace("if ('serviceWorker' in navigator && location.protocol !== 'file:') {",
+                                "if (!window.__APP_HUB__ && 'serviceWorker' in navigator && location.protocol !== 'file:') {")
+            app_js.write_text(code, encoding='utf-8')
+        bridge = ROOT / 'scripts/vendor/apphub-smoodri-native-bridge.js'
+        shutil.copy2(bridge, dest / 'apphub-smoodri-native-bridge.js')
+        if '</body>' not in text:
+            raise RuntimeError('SmooDri HTML lost its closing body tag')
+        if 'apphub-smoodri-native-bridge.js' not in text:
+            text = text.replace('</body>', '<script src="./apphub-smoodri-native-bridge.js" defer></script>\n</body>', 1)
     if repo == 'linktong':
         # External sites still require connectivity; bundled module links are
         # routed through App Hub navigation so they work offline.

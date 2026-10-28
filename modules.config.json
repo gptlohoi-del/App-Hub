@@ -1,0 +1,10 @@
+{
+  "owner": "gptlohoi-del",
+  "topic": "app-hub-module",
+  "repositories": [
+    { "repo": "smoodri", "name": "Độ êm ái lái xe", "icon": "🚘", "description": "Đo độ êm ái và cảm biến chuyển động" },
+    { "repo": "tapluyenpiano", "name": "Tập luyện Piano", "icon": "🎹", "description": "Luyện tập bản nhạc và đọc MusicXML" },
+    { "repo": "kinhtest2", "name": "Kinh Chánh Tinh Tấn", "icon": "🎧", "description": "Nghe kinh, phụ đề và luyện đọc" }
+  ],
+  "autoDiscoverByTopic": true
+}

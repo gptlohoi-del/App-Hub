@@ -1,5 +1,13 @@
 {
-  "appId": "com.example.apphub",
+  "appId": "vn.gptlohoi.apphub",
   "appName": "App Hub",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "CapacitorUpdater": {
+      "autoUpdate": false,
+      "autoDeletePrevious": false,
+      "appReadyTimeout": 20000,
+      "statsUrl": ""
+    }
+  }
 }

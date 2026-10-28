@@ -1,0 +1,3126 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<script>window.__APP_HUB__ = true;</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Luyện tập piano</title>
+  <!-- Link PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#F6EFE2">
+  <!-- Font chữ rõ nét, thân thiện với người lớn tuổi -->
+  
+  
+  
+  <!-- Thư viện JSZip để đọc trực tiếp file .mxl nén của MuseScore -->
+  <script src="./vendor/jszip.min.js"></script>
+
+  <style>
+    :root {
+      --bg-main: #F6EFE2;        /* Vàng kem ấm dịu mắt */
+      --bg-panel: #EADBC8;       /* Nâu sữa nhạt */
+      --bg-card: #FDF9F1;        /* Kem sáng */
+      --border-color: #C7B299;   /* Viền nâu nhạt */
+      --text-main: #3E2723;      /* Nâu cà phê đậm */
+      --text-muted: #6D4C41;     /* Nâu vừa */
+      --accent-primary: #8D4E2A; /* Nâu đồng ấm */
+      --accent-hover: #6F3B1E;
+      --rh-color: #1F7A68;       /* Xanh ngọc trầm - Tay phải */
+      --lh-color: #D97724;       /* Cam hổ phách ấm - Tay trái */
+      --active-phrase: #D4E6D9;  /* Xanh lá nhạt khi chọn câu */
+      --active-border: #2E7D32;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    html, body {
+      font-family: 'Lexend', sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-size: 15px;
+      height: 100%;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Bảng thông báo yêu cầu xoay ngang trên điện thoại đặt dọc */
+    #orientationOverlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(62, 39, 35, 0.96);
+      color: #FFF8E7;
+      z-index: 9999;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 24px;
+    }
+
+    @media screen and (max-width: 950px) and (orientation: portrait) {
+      #orientationOverlay {
+        display: flex;
+      }
+    }
+
+    /* Thanh điều khiển siêu mỏng cho màn hình điện thoại nằm ngang */
+    header {
+      background-color: var(--bg-panel);
+      border-bottom: 1px solid var(--border-color);
+      padding: 2px 8px;
+      min-height: 32px;
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: center;
+      gap: 6px;
+      z-index: 10;
+      flex-shrink: 0;
+      overflow-x: auto;
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: var(--bg-card);
+      padding: 2px 6px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      flex-shrink: 0;
+    }
+
+    label {
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    select, input[type="text"], input[type="number"] {
+      font-family: 'Lexend', sans-serif;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-main);
+      background-color: #FFFDF9;
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      padding: 2px 6px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    select:focus, input:focus {
+      border-color: var(--accent-primary);
+    }
+
+    button {
+      font-family: 'Lexend', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      color: #FFF;
+      background-color: var(--accent-primary);
+      border: none;
+      border-radius: 5px;
+      padding: 3px 8px;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    button:hover {
+      background-color: var(--accent-hover);
+    }
+
+    button:active {
+      transform: scale(0.97);
+    }
+
+    button.btn-secondary {
+      background-color: #E2D1BC;
+      color: var(--text-main);
+      border: 1px solid var(--border-color);
+    }
+
+    button.btn-secondary:hover {
+      background-color: #D5C0A7;
+    }
+
+    button.btn-play {
+      background-color: #2E7D32;
+      font-size: 13px;
+      padding: 3px 11px;
+    }
+
+    button.btn-play.playing {
+      background-color: #C62828;
+    }
+
+    button.btn-small-corner {
+      font-size: 11px;
+      padding: 2px 6px;
+      background-color: #DFCCB5;
+      color: var(--text-muted);
+    }
+
+    .value-badge {
+      font-weight: 700;
+      font-size: 14px;
+      min-width: 60px;
+      text-align: center;
+      color: var(--text-main);
+    }
+
+    /* Khu vực màn hình Khuông nhạc + Nốt rơi (Synthesia) & Bàn phím */
+    .stage-container {
+      flex: 1;
+      min-height: 0;
+      position: relative;
+      background-color: #EDE2D0;
+      overflow: hidden;
+    }
+
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Hộp thoại chọn câu nhạc (Popup khi bấm nút Chọn câu) */
+    .phrases-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(45, 30, 24, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .phrases-modal-backdrop.open {
+      display: flex;
+    }
+    .phrases-modal-box {
+      background: var(--bg-main);
+      border: 3px solid var(--border-color);
+      border-radius: 16px;
+      width: 90%;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      position: relative;
+    }
+    .modal-header-sticky {
+      position: sticky;
+      top: -18px;
+      background: var(--bg-main);
+      padding-top: 2px;
+      padding-bottom: 10px;
+      margin-bottom: 10px;
+      border-bottom: 2px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+    .phrase-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .phrase-chip {
+      background-color: var(--bg-card);
+      color: var(--text-main);
+      border: 2px solid var(--border-color);
+      padding: 7px 10px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+    }
+    .phrase-chip.selected {
+      background-color: var(--active-phrase);
+      border-color: var(--active-border);
+      color: #1B5E20;
+    }
+
+    /* Bảng hiển thị đếm nhịp chờ (Count-in Overlay) */
+    #countInOverlay {
+      position: absolute;
+      top: 45%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(62, 39, 35, 0.92);
+      color: #FFF8E7;
+      padding: 16px 32px;
+      border-radius: 14px;
+      font-size: 28px;
+      font-weight: 700;
+      text-align: center;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.25);
+      display: none;
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    /* Hộp thoại Cài đặt (Modal) */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(45, 30, 24, 0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-box {
+      background: var(--bg-main);
+      border: 3px solid var(--border-color);
+      border-radius: 16px;
+      width: 92%;
+      max-width: 680px;
+      max-height: 88vh;
+      overflow-y: auto;
+      padding: 20px;
+      box-shadow: 0 12px 32px rgba(0,0,0,0.3);
+      position: relative;
+    }
+
+    .setting-row {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .setting-row-inline {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .pattern-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 14px;
+    }
+
+    .pattern-table th, .pattern-table td {
+      border: 1px solid var(--border-color);
+      padding: 6px 8px;
+      text-align: left;
+    }
+
+    .pattern-table th {
+      background: var(--bg-panel);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- BẢNG THÔNG BÁO YÊU CẦU XOAY NGANG MÀN HÌNH -->
+  <div id="orientationOverlay">
+    <div style="font-size: 56px; margin-bottom: 14px;">📱🔄</div>
+    <h2 style="font-size: 24px; margin-bottom: 8px;">Vui lòng xoay ngang điện thoại</h2>
+    <p style="font-size: 16px; opacity: 0.88; max-width: 340px; line-height: 1.4;">
+      Ứng dụng hiển thị tốt nhất và đầy đủ bàn phím piano khi thiết bị ở chế độ nằm ngang. Hãy xoay ngang điện thoại của bạn nhé!
+    </p>
+  </div>
+
+  <!-- THANH ĐIỀU KHIỂN CHÍNH (SIÊU MỎNG) -->
+  <header>
+    <div class="control-group">
+      <label for="songSelect">🎵 Bài:</label>
+      <select id="songSelect" style="min-width: 30px; max-width: 50px;"></select>
+      <button class="btn-secondary btn-small-corner" id="btnOpenFolder" title="Mở file nhạc hoặc thư mục từ máy">📁 Mở file</button>
+      <input type="file" id="fileInput" multiple accept=".xml,.musicxml,.mxl" style="display:none;" />
+    </div>
+
+    <div class="control-group">
+      <button class="btn-play" id="btnPlayPause" title="Nhấn Space để Bắt đầu/Tạm dừng">▶ Bắt đầu</button>
+      <button class="btn-secondary" id="btnRestart">⏮ Đầu câu</button>
+    </div>
+
+    <div style="margin-left: auto; display: flex; gap: 6px;">
+      <button class="btn-secondary" id="btnFullscreen" title="Bật/Tắt toàn màn hình">⛶ Fullscreen</button>
+      <button class="btn-secondary" id="btnOpenPhrases">🔁 Chọn câu (0/0)</button>
+      <button class="btn-secondary" id="btnOpenSettings">⚙️ Cài đặt</button>
+    </div>
+  </header>
+
+  <!-- MÀN HÌNH KHUÔNG NHẠC CHẠY NGANG + NỐT RƠI (SYNTHESIA) & BÀN PHÍM -->
+  <div class="stage-container" id="stageContainer">
+    <div id="countInOverlay">Chuẩn bị: 4</div>
+    <canvas id="pianoCanvas"></canvas>
+  </div>
+
+  <!-- HỘP THOẠI CHỌN CÂU NHẠC (POPUP) -->
+  <div class="phrases-modal-backdrop" id="phrasesModal">
+    <div class="phrases-modal-box">
+      <div class="modal-header-sticky">
+        <h2>🔁 Chọn câu nhạc để tập lặp lại</h2>
+        <button class="btn-secondary" id="btnClosePhrases">Đóng ✕</button>
+      </div>
+      <div class="setting-row" style="margin-bottom: 10px;">
+        <label for="phraseRangeInput">⌨️ Nhập nhanh (VD: 1-5, 8, 10):</label>
+        <input type="text" id="phraseRangeInput" placeholder="Ví dụ: 1-5, 8, 10..." />
+      </div>
+      <div style="display:flex; gap:10px; margin-bottom:10px;">
+        <button class="btn-secondary" id="btnModalSelectAll">Chọn cả bài</button>
+        <button class="btn-secondary" id="btnModalClear">Xóa chọn</button>
+        <span id="phraseInfoSummary" style="margin-left:auto; font-size:14px; align-self:center; color:var(--text-muted);">Nhịp: --</span>
+      </div>
+      <div class="phrase-grid" id="phraseModalGrid"></div>
+    </div>
+  </div>
+
+  <!-- HỘP THOẠI CÀI ĐẶT (SETTINGS MODAL) -->
+  <div class="modal-backdrop" id="settingsModal">
+    <div class="modal-box">
+      <div class="modal-header-sticky">
+        <h2>⚙️ Cài đặt luyện tập</h2>
+        <button class="btn-secondary" id="btnCloseSettings">Đóng ✕</button>
+      </div>
+
+      <!-- Cài đặt: Hiển thị dòng Sheet nhạc & Khóa nhạc -->
+      <div class="setting-row">
+        <div class="setting-row-inline">
+          <label for="showSheetStaffSelect">🎼 Hiển thị dòng nhạc (Sheet chạy ngang):</label>
+          <select id="showSheetStaffSelect">
+            <option value="on">Hiện dòng sheet nhạc</option>
+            <option value="off">Ẩn dòng sheet nhạc</option>
+          </select>
+        </div>
+        <div class="setting-row-inline" style="margin-top:6px;">
+          <label for="sheetClefModeSelect">𝄞 Khóa nhạc hiển thị trên Sheet:</label>
+          <select id="sheetClefModeSelect">
+            <option value="auto">Tự động theo bài nhạc</option>
+            <option value="treble">Chỉ hiện Khóa Sol (Tay phải)</option>
+            <option value="bass">Chỉ hiện Khóa Fa (Tay trái tự sinh)</option>
+            <option value="both">Hiện cả Khóa Sol & Khóa Fa</option>
+          </select>
+        </div>
+        <div class="setting-row-inline" style="margin-top:6px;">
+          <label for="showSheetLyricSelect">📝 Hiển thị lời bài hát (Lyric):</label>
+          <select id="showSheetLyricSelect">
+            <option value="both">Hiện trên cả Sheet & Nốt rơi</option>
+            <option value="falling">Chỉ hiện trên Nốt rơi</option>
+            <option value="sheet">Chỉ hiện dưới dòng Sheet</option>
+            <option value="off">Ẩn toàn bộ Lyric</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Cài đặt: Điều chỉnh chiều cao Sheet nhạc -->
+      <div class="setting-row">
+        <div class="setting-row-inline">
+          <label for="staffHeight1Range">📏 Độ cao Sheet khi hiện 1 khóa:</label>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <input type="range" id="staffHeight1Range" min="10" max="150" step="5" value="50" style="cursor:pointer;" />
+            <span class="value-badge" id="staffHeight1Display">86 px</span>
+          </div>
+        </div>
+        <div class="setting-row-inline" style="margin-top:6px;">
+          <label for="staffHeight2Range">📏 Độ cao Sheet khi hiện 2 khóa (Sol + Fa):</label>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <input type="range" id="staffHeight2Range" min="10" max="220" step="10" value="50" style="cursor:pointer;" />
+            <span class="value-badge" id="staffHeight2Display">140 px</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cài đặt: Độ cao ô nhạc (nốt rơi) -->
+      <div class="setting-row">
+        <div class="setting-row-inline">
+          <label for="noteHeightRange">📐 Độ cao ô nhạc (độ dài nốt rơi):</label>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <input type="range" id="noteHeightRange" min="0.5" max="3" step="0.05" value="1" style="cursor:pointer;" />
+            <span class="value-badge" id="noteHeightDisplay">100%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cài đặt: Tốc độ BPM -->
+      <div class="setting-row">
+        <div class="setting-row-inline">
+          <label>⏱ Tốc độ bài hát (Tempo):</label>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button class="btn-secondary" id="btnTempoDown">- 5</button>
+            <span class="value-badge" id="tempoDisplay">75 BPM</span>
+            <button class="btn-secondary" id="btnTempoUp">+ 5</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cài đặt: Mẫu rải tay trái -->
+      <div class="setting-row" id="patternControlGroup">
+        <div class="setting-row-inline">
+          <label for="patternSelect">🎹 Kiểu rải hợp âm tay trái:</label>
+          <select id="patternSelect" style="max-width: 320px;"></select>
+        </div>
+      </div>
+
+      <!-- Cài đặt: Tone & Transpose -->
+      <div class="setting-row">
+        <div class="setting-row-inline">
+          <label>🎼 Chỉnh Tone (Transpose):</label>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <button class="btn-secondary" id="btnTransposeDown">-1</button>
+            <span class="value-badge" id="transposeDisplay" style="min-width: 105px;">Tone: C</span>
+            <button class="btn-secondary" id="btnTransposeUp">+1</button>
+            <button class="btn-secondary" id="btnAutoWhiteKeys">Về C/Am</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cài đặt: Độ trong suốt ô lyric -->
+      <div class="setting-row">
+        <div class="setting-row-inline">
+          <label for="lyricBgOpacityRange">👻 Độ mờ nền ô lyric:</label>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <input type="range" id="lyricBgOpacityRange" min="0" max="1" step="0.05" value="0.7" style="cursor:pointer;" />
+            <span class="value-badge" id="lyricBgOpacityDisplay">70%</span>
+          </div>
+        </div>
+        <div class="setting-row-inline" style="margin-top:6px;">
+          <label for="lyricTextOpacityRange">✍️ Độ mờ chữ lyric:</label>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <input type="range" id="lyricTextOpacityRange" min="0.2" max="1" step="0.05" value="1.0" style="cursor:pointer;" />
+            <span class="value-badge" id="lyricTextOpacityDisplay">100%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cài đặt: Chế độ tay -->
+      <div class="setting-row">
+        <div class="setting-row-inline">
+          <label for="handModeSelect">🖐 Chế độ phát & hiển thị tay:</label>
+          <select id="handModeSelect">
+            <option value="both">Cả 2 tay (Tay Phải + Tay Trái)</option>
+            <option value="rh">Chỉ Tay Phải (Tập giai điệu)</option>
+            <option value="lh">Chỉ Tay Trái (Tập rải hợp âm)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Cài đặt: Nhịp đếm chờ -->
+      <div class="setting-row">
+        <div class="setting-row-inline">
+          <label for="countInInput">⏳ Số nhịp đếm chờ (Count-in) trước khi lặp lại câu:</label>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button class="btn-secondary" id="btnCountInMinus">-</button>
+            <input type="number" id="countInInput" min="0" max="16" value="3" style="width: 75px; text-align:center;" />
+            <button class="btn-secondary" id="btnCountInPlus">+</button>
+            <span>nhịp</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cài đặt: Hiển thị tên nốt -->
+      <div class="setting-row">
+        <div class="setting-row-inline">
+          <label for="noteLabelSelect">🔤 Kiểu hiển thị tên nốt trên thanh rơi & phím đàn:</label>
+          <select id="noteLabelSelect">
+            <option value="solfege">Đô - Rê - Mi - Fa - Sol - La - Si</option>
+            <option value="letter">C - D - E - F - G - A - B</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Cài đặt: Thêm quy tắc rải hợp âm -->
+      <div class="setting-row">
+        <label>➕ Tự thêm quy tắc rải hợp âm mới:</label>
+        <div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:6px;">
+          <input type="text" id="newPatternNotes" placeholder="VD: 1 - (3 5) - 1 - (3 5)" style="flex: 2; min-width: 220px;" />
+          <input type="text" id="newPatternMeters" placeholder="Gợi ý nhịp, VD: 4/4, 2/4" style="flex: 1; min-width: 140px;" />
+          <button id="btnAddPattern">Thêm mẫu</button>
+        </div>
+        <table class="pattern-table" id="patternTable">
+          <thead>
+            <tr>
+              <th>Tên & Chuỗi bậc</th>
+              <th>Gợi ý nhịp</th>
+              <th>Xóa</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /********************************************************************
+     * 1. CÁC BIẾN TÙY CHỈNH & CẤU HÌNH MẶC ĐỊNH
+     ********************************************************************/
+    let noteHeightScale = parseFloat(localStorage.getItem("piano_noteHeightScale") ?? "1.0");
+    if (isNaN(noteHeightScale)) noteHeightScale = 1.0;
+    const LYRIC_FONT_SIZE = 14;
+
+    let staffBannerHeight1 = parseInt(localStorage.getItem("piano_staffHeight1") ?? "55", 10);
+    let staffBannerHeight2 = parseInt(localStorage.getItem("piano_staffHeight2") ?? "95", 10);
+
+    let lyricBgOpacity = parseFloat(localStorage.getItem("piano_lyricBgOpacity") ?? "0.7");
+    let lyricTextOpacity = parseFloat(localStorage.getItem("piano_lyricTextOpacity") ?? "1.0");
+    let showSheetStaff = (localStorage.getItem("piano_showSheetStaff") ?? "on") === "on";
+    let sheetClefMode = localStorage.getItem("piano_sheetClefMode") || "auto"; // "auto" | "treble" | "bass" | "both"
+    let showLyricMode = localStorage.getItem("piano_showLyricMode") || "both";
+
+    const DEFAULT_SONG_FILES = [
+      "viet-nam-toi.mxl",
+      "tien-quan-ca-quoc-ca.mxl",
+      "fur-elise-easy-ver.mxl"
+    ];
+
+    const FALLBACK_PATTERNS = [
+      { id: "p1",  name: "Mẫu 1: 1 – 3 – 5 – 3",           notes: [1, 3, 5, 3],           suggestedMeters: ["2/4", "4/4"], hint: "Nhịp 2/4, 4/4" },
+      { id: "p2",  name: "Mẫu 2: 1 – 5 – 3 – 5",           notes: [1, 5, 3, 5],           suggestedMeters: ["2/4", "4/4"], hint: "Nhịp 2/4, 4/4" },
+      { id: "p3",  name: "Mẫu 3: 1 – 5 – 8 – 5",           notes: [1, 5, 8, 5],           suggestedMeters: ["2/4", "4/4"], hint: "Nhịp 2/4, 4/4" },
+      { id: "p4",  name: "Mẫu 4: 1 – 3 – 5 – 8",           notes: [1, 3, 5, 8],           suggestedMeters: ["2/4", "4/4"], hint: "Nhịp 2/4, 4/4" },
+      { id: "p5",  name: "Mẫu 5: 1 – 5 – 8 – 3",           notes: [1, 5, 8, 3],           suggestedMeters: ["2/4", "4/4"], hint: "Nhịp 2/4, 4/4" },
+      { id: "p6",  name: "Mẫu 6: 1 – 3 – 8 – 5",           notes: [1, 3, 8, 5],           suggestedMeters: ["2/4", "4/4"], hint: "Nhịp 2/4, 4/4" },
+      { id: "p7",  name: "Mẫu 7: 1 – 5 – 3 – 8",           notes: [1, 5, 3, 8],           suggestedMeters: ["2/4", "4/4"], hint: "Nhịp 2/4, 4/4" },
+      { id: "p8",  name: "Mẫu 8: 1 – 5 – 8 – 3 – 5",       notes: [1, 5, 8, 3, 5],        suggestedMeters: ["4/4", "3/4"], hint: "Nhịp 4/4, 3/4" },
+      { id: "p9",  name: "Mẫu 9: 1 – 3 – 5 – 8 – 5 – 3",   notes: [1, 3, 5, 8, 5, 3],     suggestedMeters: ["3/4", "6/8"], hint: "Nhịp 3/4, 6/8" },
+      { id: "p10", name: "Mẫu 10: 1 – 5 – 3 – 5 – 8 – 5",  notes: [1, 5, 3, 5, 8, 5],     suggestedMeters: ["3/4", "6/8"], hint: "Nhịp 3/4, 6/8" },
+      { id: "p11", name: "Mẫu 11: 1 – (3 5) – 1 – (3 5)",  notes: [1, [3, 5], 1, [3, 5]], suggestedMeters: ["2/4", "4/4"], hint: "Nhịp 2/4, 4/4 (Đệm chập)" },
+      { id: "p12", name: "Mẫu 12: 1 – (3 5) – (3 5)",      notes: [1, [3, 5], [3, 5]],    suggestedMeters: ["3/4"],        hint: "Nhịp 3/4 (Valse chập)" }
+    ];
+
+    /********************************************************************
+     * 2. BẢNG TRA CỨU NHẠC LÝ & VỊ TRÍ DÒNG KẺ KHUÔNG NHẠC
+     ********************************************************************/
+    const STEP_TO_SEMITONE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+    const STEP_TO_DIATONIC_IDX = { C: 0, D: 1, E: 2, F: 3, G: 4, A: 5, B: 6 };
+    const SEMITONE_TO_LETTER = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"];
+    const SEMITONE_TO_SOLFEGE = ["Đô", "Đô#", "Rê", "Mib", "Mi", "Fa", "Fa#", "Sol", "Lab", "La", "Sib", "Si"];
+
+    const PC_TO_DIATONIC = [
+      { stepIdx: 0, acc: "" },  // 0: C
+      { stepIdx: 0, acc: "#" }, // 1: C#
+      { stepIdx: 1, acc: "" },  // 2: D
+      { stepIdx: 2, acc: "b" }, // 3: Eb
+      { stepIdx: 2, acc: "" },  // 4: E
+      { stepIdx: 3, acc: "" },  // 5: F
+      { stepIdx: 3, acc: "#" }, // 6: F#
+      { stepIdx: 4, acc: "" },  // 7: G
+      { stepIdx: 5, acc: "b" }, // 8: Ab
+      { stepIdx: 5, acc: "" },  // 9: A
+      { stepIdx: 6, acc: "b" }, // 10: Bb
+      { stepIdx: 6, acc: "" }   // 11: B
+    ];
+
+    const FIFTHS_TO_TONIC_PC = {
+      "-7": 11, "-6": 6, "-5": 1, "-4": 8, "-3": 3, "-2": 10, "-1": 5,
+      "0": 0, "1": 7, "2": 2, "3": 9, "4": 4, "5": 11, "6": 6, "7": 1
+    };
+
+    let patterns = [];
+    let currentPatternId = "p1";
+    let localFilesMap = new Map();
+
+    let songData = null;
+    let activeNotes = [];
+    let phrases = [];
+    let selectedPhraseIndices = new Set();
+
+    let isPlaying = false;
+    let currentBpm = 75;
+    let currentBeat = 0;
+    let transposeSemitones = 0;
+    let handMode = localStorage.getItem("piano_handMode") || "both";
+    let countInBeatsSetting = parseInt(localStorage.getItem("piano_countIn") ?? "3", 10);
+    let noteLabelMode = localStorage.getItem("piano_noteLabel") || "solfege";
+
+    let isCountingIn = false;
+    let countInRemainingBeats = 0;
+    let lastCountInInt = -1;
+
+    let audioCtx = null;
+    let triggeredNotesSet = new Set();
+    let lastFrameTime = 0;
+
+    /********************************************************************
+     * 3. BỘ PHÁT ÂM THANH PIANO (WEB AUDIO SYNTH)
+     ********************************************************************/
+    function ensureAudioContext() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioContextClass();
+      }
+      if (audioCtx.state === "suspended") {
+        audioCtx.resume();
+      }
+    }
+
+    function playPianoNote(midi, durationSec, hand) {
+      if (!audioCtx) return;
+      if (handMode === "rh" && hand === "lh") return;
+      if (handMode === "lh" && hand === "rh") return;
+
+      const now = audioCtx.currentTime;
+      const freq = 440 * Math.pow(2, (midi - 69) / 12);
+
+      const masterGain = audioCtx.createGain();
+      const maxGain = hand === "rh" ? 0.28 : 0.16;
+      masterGain.gain.setValueAtTime(0.001, now);
+      masterGain.gain.linearRampToValueAtTime(maxGain, now + 0.015);
+      masterGain.gain.exponentialRampToValueAtTime(maxGain * 0.4, now + 0.25);
+      masterGain.gain.exponentialRampToValueAtTime(0.0008, now + Math.max(durationSec, 0.35) + 0.15);
+
+      const osc1 = audioCtx.createOscillator();
+      osc1.type = "triangle";
+      osc1.frequency.setValueAtTime(freq, now);
+
+      const osc2 = audioCtx.createOscillator();
+      osc2.type = "sine";
+      osc2.frequency.setValueAtTime(freq * 2, now);
+      const gain2 = audioCtx.createGain();
+      gain2.gain.setValueAtTime(0.18, now);
+
+      osc1.connect(masterGain);
+      osc2.connect(gain2);
+      gain2.connect(masterGain);
+      masterGain.connect(audioCtx.destination);
+
+      const stopTime = now + Math.max(durationSec, 0.35) + 0.2;
+      osc1.start(now);
+      osc2.start(now);
+      osc1.stop(stopTime);
+      osc2.stop(stopTime);
+    }
+
+    function playMetronomeTick(isAccent = false) {
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(isAccent ? 880 : 620, now);
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.08);
+    }
+
+    /********************************************************************
+     * 4. XỬ LÝ MA TRẬN RẢI HỢP ÂM (HỖ TRỢ ĐÁNH CHẬP 1 - (3 5) - 1 - (3 5))
+     ********************************************************************/
+    function parsePatternSteps(rawInput) {
+      if (Array.isArray(rawInput)) {
+        return rawInput.map((item) => {
+          if (Array.isArray(item)) {
+            return item.map(Number).filter((n) => !isNaN(n) && n >= 1 && n <= 12);
+          }
+          if (typeof item === "string") {
+            const nums = item.trim().split(/[\s,]+/).map(Number).filter((n) => !isNaN(n) && n >= 1 && n <= 12);
+            return nums.length > 1 ? nums : (nums[0] || 1);
+          }
+          return Number(item) || 1;
+        });
+      }
+      if (typeof rawInput === "string") {
+        const steps = [];
+        const regex = /\(([^)]+)\)|(\d+)/g;
+        let match;
+        while ((match = regex.exec(rawInput)) !== null) {
+          if (match[1]) {
+            const groupNums = match[1]
+              .trim()
+              .split(/[\s,\-–]+/)
+              .map((x) => parseInt(x, 10))
+              .filter((x) => !isNaN(x) && x >= 1 && x <= 12);
+            if (groupNums.length === 1) steps.push(groupNums[0]);
+            else if (groupNums.length > 1) steps.push(groupNums);
+          } else if (match[2]) {
+            const singleNum = parseInt(match[2], 10);
+            if (!isNaN(singleNum) && singleNum >= 1 && singleNum <= 12) {
+              steps.push(singleNum);
+            }
+          }
+        }
+        return steps;
+      }
+      return [1, 3, 5, 3];
+    }
+
+    function formatPatternSteps(notesArray) {
+      const steps = parsePatternSteps(notesArray);
+      return steps
+        .map((st) => (Array.isArray(st) ? `(${st.join(" ")})` : String(st)))
+        .join(" – ");
+    }
+
+    async function loadPatterns() {
+      let basePatterns = [...FALLBACK_PATTERNS];
+      try {
+        const res = await fetch("patterns.json", { cache: "no-store" });
+        if (res.ok) {
+          const json = await res.json();
+          if (Array.isArray(json) && json.length > 0) {
+            basePatterns = json.map((p) => ({
+              ...p,
+              notes: parsePatternSteps(p.notes)
+            }));
+          }
+        }
+      } catch (e) {}
+
+      const customSaved = localStorage.getItem("piano_customPatterns");
+      if (customSaved) {
+        try {
+          const parsed = JSON.parse(customSaved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            basePatterns = parsed.map((p) => ({
+              ...p,
+              notes: parsePatternSteps(p.notes)
+            }));
+          }
+        } catch (err) {}
+      }
+      patterns = basePatterns;
+      renderPatternSelect();
+      renderPatternTable();
+    }
+
+    function savePatternsToLocal() {
+      localStorage.setItem("piano_customPatterns", JSON.stringify(patterns));
+      renderPatternSelect();
+      renderPatternTable();
+      rebuildActiveNotes();
+    }
+
+    function renderPatternSelect() {
+      const select = document.getElementById("patternSelect");
+      select.innerHTML = "";
+      const currentMeter = songData ? `${songData.beats}/${songData.beatType}` : "";
+
+      patterns.forEach((p) => {
+        const opt = document.createElement("option");
+        opt.value = p.id;
+        const isRecommended = currentMeter && Array.isArray(p.suggestedMeters) && p.suggestedMeters.includes(currentMeter);
+        const badge = isRecommended ? "⭐ [Phù hợp] " : "";
+        const hintText = p.hint ? ` (${p.hint})` : (p.suggestedMeters ? ` (${p.suggestedMeters.join(", ")})` : "");
+        opt.textContent = `${badge}${p.name}${hintText}`;
+        select.appendChild(opt);
+      });
+
+      if (patterns.some((p) => p.id === currentPatternId)) {
+        select.value = currentPatternId;
+      } else if (patterns.length > 0) {
+        currentPatternId = patterns[0].id;
+        select.value = currentPatternId;
+      }
+    }
+
+    function renderPatternTable() {
+      const tbody = document.querySelector("#patternTable tbody");
+      tbody.innerHTML = "";
+      patterns.forEach((p) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><b>${p.name}</b><br/><small>Chuỗi bậc: ${formatPatternSteps(p.notes)}</small></td>
+          <td>${(p.suggestedMeters || []).join(", ") || "Mọi loại nhịp"}</td>
+          <td><button class="btn-secondary" data-del="${p.id}" style="padding:4px 10px; font-size:13px;">Xóa</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      tbody.querySelectorAll("button[data-del]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          if (patterns.length <= 1) {
+            alert("Cần giữ lại ít nhất 1 mẫu rải hợp âm!");
+            return;
+          }
+          const id = btn.getAttribute("data-del");
+          patterns = patterns.filter((item) => item.id !== id);
+          savePatternsToLocal();
+        });
+      });
+    }
+
+    /********************************************************************
+     * 5. TỰ ĐỘNG QUÉT FILE NHẠC TRONG THƯ MỤC
+     ********************************************************************/
+    async function initSongList() {
+      if (window.__APP_HUB__) {
+        try {
+          const listing = await (await fetch('./apphub-files.json')).json();
+          const songs = listing.files.filter(f => /\.(mxl|xml|musicxml)$/i.test(f));
+          populateSongSelect(songs);
+          if (songs.length) loadSelectedSong(songs[0]);
+          return;
+        } catch (error) { console.warn('Offline song list:', error); }
+      }
+
+      const discoveredFiles = new Set();
+
+      try {
+        const dirRes = await fetch("./", { cache: "no-store" });
+        if (dirRes.ok) {
+          const htmlText = await dirRes.text();
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(htmlText, "text/html");
+          const links = Array.from(doc.querySelectorAll("a[href]"));
+          links.forEach((a) => {
+            const rawHref = decodeURIComponent(a.getAttribute("href") || "");
+            const cleanName = rawHref.split("/").filter(Boolean).pop() || "";
+            if (/\.(mxl|xml|musicxml)$/i.test(cleanName)) {
+              discoveredFiles.add(cleanName);
+            }
+          });
+        }
+      } catch (e) {}
+
+      if (window.location.hostname.endsWith("github.io")) {
+        try {
+          const owner = window.location.hostname.split(".")[0];
+          const pathParts = window.location.pathname.split("/").filter(Boolean);
+          if (pathParts.length > 0 && pathParts[pathParts.length - 1].includes(".")) {
+            pathParts.pop();
+          }
+          if (pathParts.length >= 1) {
+            const repo = pathParts[0];
+            const dirPath = pathParts.slice(1).join("/");
+            const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${dirPath}`;
+            const res = await fetch(apiUrl);
+            if (res.ok) {
+              const items = await res.json();
+              if (Array.isArray(items)) {
+                items.forEach((item) => {
+                  if (item.type === "file" && /\.(mxl|xml|musicxml)$/i.test(item.name)) {
+                    discoveredFiles.add(item.name);
+                  }
+                });
+              }
+            }
+          }
+        } catch (err) {}
+      }
+
+      if (discoveredFiles.size === 0) {
+        for (const fName of DEFAULT_SONG_FILES) {
+          try {
+            const headRes = await fetch(encodeURI(fName), { method: "HEAD" });
+            if (headRes.ok) discoveredFiles.add(fName);
+          } catch (e) {}
+        }
+      }
+
+      if (discoveredFiles.size === 0) {
+        DEFAULT_SONG_FILES.forEach((f) => discoveredFiles.add(f));
+      }
+
+      const finalList = Array.from(discoveredFiles);
+      populateSongSelect(finalList);
+      if (finalList.length > 0) {
+        loadSelectedSong(finalList[0]);
+      }
+    }
+
+    function populateSongSelect(fileNames) {
+      const select = document.getElementById("songSelect");
+      select.innerHTML = "";
+      fileNames.forEach((name) => {
+        const opt = document.createElement("option");
+        opt.value = name;
+        opt.textContent = name;
+        select.appendChild(opt);
+      });
+    }
+
+    /********************************************************************
+     * 6. GIẢI NÉN FILE .MXL & PHÂN TÍCH MUSICXML (HỖ TRỢ ĐẤT DẤU LẶNG & 2 KHÓA)
+     ********************************************************************/
+    async function extractXmlStringFromBuffer(arrayBuffer, fileName) {
+      const isMxl = fileName.toLowerCase().endsWith(".mxl");
+      const uint8 = new Uint8Array(arrayBuffer);
+      const isZipHeader = uint8.length > 4 && uint8[0] === 0x50 && uint8[1] === 0x4B;
+
+      if (isMxl || isZipHeader) {
+        const zip = await JSZip.loadAsync(arrayBuffer);
+        let rootFilePath = null;
+
+        if (zip.file("META-INF/container.xml")) {
+          const containerText = await zip.file("META-INF/container.xml").async("string");
+          const parser = new DOMParser();
+          const containerDoc = parser.parseFromString(containerText, "application/xml");
+          const rootFileEl = containerDoc.querySelector("rootfile");
+          if (rootFileEl && rootFileEl.getAttribute("full-path")) {
+            rootFilePath = rootFileEl.getAttribute("full-path");
+          }
+        }
+
+        if (!rootFilePath || !zip.file(rootFilePath)) {
+          const candidates = Object.keys(zip.files).filter(
+            (path) => !path.startsWith("META-INF") && /\.(xml|musicxml)$/i.test(path)
+          );
+          if (candidates.length > 0) rootFilePath = candidates[0];
+        }
+
+        if (!rootFilePath || !zip.file(rootFilePath)) {
+          throw new Error("Không tìm thấy dữ liệu MusicXML bên trong file .mxl!");
+        }
+        return await zip.file(rootFilePath).async("string");
+      } else {
+        const decoder = new TextDecoder("utf-8");
+        return decoder.decode(arrayBuffer);
+      }
+    }
+
+    async function loadSelectedSong(fileName) {
+      stopPlayback();
+      try {
+        let arrayBuffer;
+        if (localFilesMap.has(fileName)) {
+          arrayBuffer = await localFilesMap.get(fileName).arrayBuffer();
+        } else {
+          const response = await fetch(encodeURI(fileName));
+          if (!response.ok) {
+            throw new Error(`Không tải được file "${fileName}". Hãy bấm nút "📁 Mở file" ở góc trái để chọn file.`);
+          }
+          arrayBuffer = await response.arrayBuffer();
+        }
+
+        const xmlText = await extractXmlStringFromBuffer(arrayBuffer, fileName);
+        parseMusicXML(xmlText, fileName);
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    function parseMusicXML(xmlText, fileName) {
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlText, "application/xml");
+
+      const parts = Array.from(xmlDoc.querySelectorAll("part"));
+      if (parts.length === 0) {
+        alert("File không đúng chuẩn MusicXML!");
+        return;
+      }
+
+      const stavesEl = xmlDoc.querySelector("attributes > staves");
+      const numStaves = stavesEl ? parseInt(stavesEl.textContent.trim(), 10) : 1;
+      const isTwoHandPianoSheet = numStaves >= 2 || parts.length >= 2;
+
+      let divisions = 1;
+      let fifths = 0;
+      let beats = 4;
+      let beatType = 4;
+      let detectedTempo = 75;
+
+      const soundTempoEl = xmlDoc.querySelector("sound[tempo]");
+      if (soundTempoEl) {
+        const t = parseFloat(soundTempoEl.getAttribute("tempo"));
+        if (!isNaN(t) && t > 20 && t < 260) detectedTempo = Math.round(t);
+      }
+
+      const rawRightNotes = [];
+      const rawLeftNotes = [];
+      const rawRests = [];
+      const rawSheetNotes = []; // Lưu cả nốt và dấu lặng để vẽ lên Sheet
+      const measuresInfo = [];
+
+      let globalQuarterCursor = 0;
+      const measureEls = Array.from(parts[0].querySelectorAll("measure"));
+      const tiedNoteMap = new Map();
+
+      measureEls.forEach((measureEl, mIdx) => {
+        const measureStartQuarter = globalQuarterCursor;
+        let localDivCursor = 0;
+        let maxLocalDivCursor = 0;
+        const measureHarmonies = [];
+
+        Array.from(measureEl.children).forEach((child) => {
+          const tag = child.tagName;
+
+          if (tag === "attributes") {
+            const divEl = child.querySelector("divisions");
+            if (divEl) divisions = Math.max(1, parseInt(divEl.textContent.trim(), 10));
+            const fifthsEl = child.querySelector("key > fifths");
+            if (fifthsEl) fifths = parseInt(fifthsEl.textContent.trim(), 10);
+            const beatsEl = child.querySelector("time > beats");
+            const beatTypeEl = child.querySelector("time > beat-type");
+            if (beatsEl && beatTypeEl) {
+              beats = parseInt(beatsEl.textContent.trim(), 10);
+              beatType = parseInt(beatTypeEl.textContent.trim(), 10);
+            }
+          } else if (tag === "backup") {
+            const dur = parseInt(child.querySelector("duration")?.textContent || "0", 10);
+            localDivCursor = Math.max(0, localDivCursor - dur);
+          } else if (tag === "forward") {
+            const dur = parseInt(child.querySelector("duration")?.textContent || "0", 10);
+            localDivCursor += dur;
+            if (localDivCursor > maxLocalDivCursor) maxLocalDivCursor = localDivCursor;
+          } else if (tag === "harmony") {
+            const rootStep = child.querySelector("root > root-step")?.textContent.trim();
+            const rootAlter = parseInt(child.querySelector("root > root-alter")?.textContent || "0", 10);
+            const kindText = (child.querySelector("kind")?.textContent || "major").trim().toLowerCase();
+            if (rootStep && STEP_TO_SEMITONE[rootStep] !== undefined) {
+              const rootPc = (STEP_TO_SEMITONE[rootStep] + rootAlter + 12) % 12;
+              const isMinor = kindText.includes("minor") && !kindText.includes("major");
+              const isDim = kindText.includes("diminished");
+              const offsetQuarter = localDivCursor / divisions;
+              measureHarmonies.push({
+                startQuarter: measureStartQuarter + offsetQuarter,
+                rootPc,
+                quality: isDim ? "dim" : (isMinor ? "minor" : "major"),
+                label: `${rootStep}${rootAlter === 1 ? "#" : (rootAlter === -1 ? "b" : "")}${isMinor ? "m" : ""}`
+              });
+            }
+          } else if (tag === "note") {
+            const isGrace = child.querySelector("grace") !== null;
+            if (isGrace) return;
+
+            const isChord = child.querySelector("chord") !== null;
+            const durDiv = parseInt(child.querySelector("duration")?.textContent || "0", 10);
+            const durQuarter = durDiv / divisions;
+            const staffNum = parseInt(child.querySelector("staff")?.textContent || "1", 10);
+
+            const noteStartDiv = isChord ? Math.max(0, localDivCursor - durDiv) : localDivCursor;
+            const noteStartQuarter = measureStartQuarter + (noteStartDiv / divisions);
+
+            const isRest = child.querySelector("rest") !== null;
+            const noteType = child.querySelector("type")?.textContent.trim() || "";
+            const isDotted = child.querySelector("dot") !== null;
+            const voice = child.querySelector("voice")?.textContent.trim() || "1";
+            const isFullMeasureRest = child.querySelector("rest")?.getAttribute("measure") === "yes";
+
+            if (isRest) {
+              if (staffNum === 1) {
+                rawRests.push({
+                  startQuarter: noteStartQuarter,
+                  durationQuarter: durQuarter,
+                  measureIndex: mIdx
+                });
+              }
+              if (staffNum === 1 || staffNum === 2) {
+                rawSheetNotes.push({
+                  isRest: true,
+                  staff: staffNum,
+                  voice,
+                  startQuarter: noteStartQuarter,
+                  durationQuarter: durQuarter,
+                  measureIndex: mIdx,
+                  noteType,
+                  isDotted,
+                  fullMeasure: isFullMeasureRest
+                });
+              }
+            } else {
+              const step = child.querySelector("pitch > step")?.textContent.trim() || "C";
+              const alter = parseInt(child.querySelector("pitch > alter")?.textContent || "0", 10);
+              const octave = parseInt(child.querySelector("pitch > octave")?.textContent || "4", 10);
+              const midi = (octave + 1) * 12 + STEP_TO_SEMITONE[step] + alter;
+
+              const lyricEls = Array.from(child.querySelectorAll("lyric"));
+              const lyricsByVerse = {};
+              lyricEls.forEach((lEl, idx) => {
+                const numAttr = lEl.getAttribute("number") || String(idx + 1);
+                const t = lEl.querySelector("text")?.textContent.trim() || "";
+                if (t) {
+                  lyricsByVerse[numAttr] = lyricsByVerse[numAttr]
+                    ? `${lyricsByVerse[numAttr]} ${t}`
+                    : t;
+                }
+              });
+
+              const tieEls = Array.from(child.querySelectorAll("tie, notations > tied"));
+              const hasTieStart = tieEls.some((el) => el.getAttribute("type") === "start");
+              const hasTieStop = tieEls.some((el) => el.getAttribute("type") === "stop");
+
+              const beamEl = child.querySelector("beam[number='1']") || child.querySelector("beam");
+              const beamState = beamEl ? beamEl.textContent.trim().toLowerCase() : "";
+
+              if (staffNum === 1 || staffNum === 2) {
+                rawSheetNotes.push({
+                  isRest: false,
+                  staff: staffNum,
+                  voice,
+                  midi,
+                  step,
+                  alter,
+                  octave,
+                  startQuarter: noteStartQuarter,
+                  durationQuarter: durQuarter,
+                  measureIndex: mIdx,
+                  noteType,
+                  isDotted,
+                  hasTieStart,
+                  hasTieStop,
+                  beamState,
+                  lyricsByVerse,
+                  lyric: ""
+                });
+              }
+
+              const tieKey = `${staffNum}_${midi}`;
+
+              if (hasTieStop && tiedNoteMap.has(tieKey)) {
+                const prevNote = tiedNoteMap.get(tieKey);
+                prevNote.durationQuarter += durQuarter;
+                Object.keys(lyricsByVerse).forEach((vKey) => {
+                  if (!prevNote.lyricsByVerse[vKey]) {
+                    prevNote.lyricsByVerse[vKey] = lyricsByVerse[vKey];
+                  }
+                });
+                if (!hasTieStart) tiedNoteMap.delete(tieKey);
+              } else {
+                const noteObj = {
+                  midi,
+                  startQuarter: noteStartQuarter,
+                  durationQuarter: durQuarter,
+                  measureIndex: mIdx,
+                  lyricsByVerse,
+                  lyric: "",
+                  hand: staffNum === 1 ? "rh" : "lh"
+                };
+                if (staffNum === 1) {
+                  rawRightNotes.push(noteObj);
+                } else {
+                  rawLeftNotes.push(noteObj);
+                }
+                if (hasTieStart) {
+                  tiedNoteMap.set(tieKey, noteObj);
+                }
+              }
+            }
+
+            if (!isChord) {
+              localDivCursor += durDiv;
+              if (localDivCursor > maxLocalDivCursor) maxLocalDivCursor = localDivCursor;
+            }
+          }
+        });
+
+        const expectedMeasureQuarters = (beats * 4) / beatType;
+        const actualMeasureQuarters = maxLocalDivCursor > 0 ? (maxLocalDivCursor / divisions) : expectedMeasureQuarters;
+
+        measuresInfo.push({
+          index: mIdx,
+          startQuarter: measureStartQuarter,
+          durationQuarter: actualMeasureQuarters,
+          beats,
+          beatType,
+          harmonies: measureHarmonies
+        });
+
+        globalQuarterCursor += actualMeasureQuarters;
+      });
+
+      const halfQuarter = globalQuarterCursor / 2;
+      const hasSecondVerse = rawRightNotes.some((n) => {
+        const keys = Object.keys(n.lyricsByVerse || {});
+        return keys.length >= 2 || keys.includes("2");
+      });
+
+      function assignVerseLyric(noteList) {
+        noteList.forEach((n) => {
+          const map = n.lyricsByVerse || {};
+          const keys = Object.keys(map).sort();
+          if (keys.length === 0) {
+            n.lyric = "";
+          } else if (!hasSecondVerse || keys.length === 1) {
+            const firstKey = keys[0];
+            n.lyric = map[firstKey];
+          } else {
+            if (n.startQuarter < halfQuarter) {
+              n.lyric = map["1"] || map[keys[0]] || "";
+            } else {
+              n.lyric = map["2"] || map[keys[1]] || map[keys[0]] || "";
+            }
+          }
+        });
+      }
+
+      assignVerseLyric(rawRightNotes);
+      assignVerseLyric(rawSheetNotes);
+
+      // Xử lý Part 2 (hoặc tự sinh nốt Khóa Fa tay trái cho sheet 1 khuông nếu chọn hiện 2 khóa)
+      if (parts.length >= 2 && rawLeftNotes.length === 0) {
+        let p2Cursor = 0;
+        let p2Divisions = divisions;
+        Array.from(parts[1].querySelectorAll("measure")).forEach((mEl, mIdx) => {
+          const mStart = p2Cursor;
+          let localCur = 0;
+          let maxCur = 0;
+          Array.from(mEl.children).forEach((ch) => {
+            if (ch.tagName === "attributes") {
+              const d = ch.querySelector("divisions");
+              if (d) p2Divisions = Math.max(1, parseInt(d.textContent.trim(), 10));
+            } else if (ch.tagName === "note" && !ch.querySelector("grace")) {
+              const isChord = ch.querySelector("chord") !== null;
+              const durDiv = parseInt(ch.querySelector("duration")?.textContent || "0", 10);
+              const durQ = durDiv / p2Divisions;
+              const startDiv = isChord ? Math.max(0, localCur - durDiv) : localCur;
+              const typeTxt = ch.querySelector("type")?.textContent.trim() || "";
+              const dotted2 = ch.querySelector("dot") !== null;
+              const voice2 = ch.querySelector("voice")?.textContent.trim() || "1";
+              const startQ2 = mStart + startDiv / p2Divisions;
+              if (ch.querySelector("rest")) {
+                rawSheetNotes.push({
+                  isRest: true,
+                  staff: 2,
+                  voice: voice2,
+                  startQuarter: startQ2,
+                  durationQuarter: durQ,
+                  measureIndex: mIdx,
+                  noteType: typeTxt,
+                  isDotted: dotted2,
+                  fullMeasure: ch.querySelector("rest")?.getAttribute("measure") === "yes"
+                });
+              } else {
+                const step = ch.querySelector("pitch > step")?.textContent.trim() || "C";
+                const alter = parseInt(ch.querySelector("pitch > alter")?.textContent || "0", 10);
+                const octave = parseInt(ch.querySelector("pitch > octave")?.textContent || "3", 10);
+                const midi = (octave + 1) * 12 + STEP_TO_SEMITONE[step] + alter;
+                rawLeftNotes.push({
+                  midi,
+                  startQuarter: startQ2,
+                  durationQuarter: durQ,
+                  measureIndex: mIdx,
+                  lyric: "",
+                  hand: "lh"
+                });
+                rawSheetNotes.push({
+                  isRest: false,
+                  staff: 2,
+                  voice: voice2,
+                  midi, step, alter, octave,
+                  startQuarter: startQ2,
+                  durationQuarter: durQ,
+                  measureIndex: mIdx,
+                  noteType: typeTxt,
+                  isDotted: dotted2,
+                  beamState: "",
+                  lyric: ""
+                });
+              }
+              if (!isChord) {
+                localCur += durDiv;
+                if (localCur > maxCur) maxCur = localCur;
+              }
+            }
+          });
+          p2Cursor += maxCur > 0 ? maxCur / p2Divisions : (beats * 4) / beatType;
+        });
+      }
+
+      const hasExplicitChords = measuresInfo.some((m) => m.harmonies.length > 0);
+
+      songData = {
+        fileName,
+        isTwoHandPianoSheet: isTwoHandPianoSheet && rawLeftNotes.length > 0,
+        hasExplicitChords,
+        fifths,
+        beats,
+        beatType,
+        totalQuarters: globalQuarterCursor,
+        rawRightNotes,
+        rawLeftNotes,
+        rawRests,
+        rawSheetNotes,
+        measuresInfo
+      };
+
+      songData.hasLhInSheet = rawSheetNotes.some((n) => n.staff === 2 && !n.isRest);
+      currentBpm = detectedTempo;
+      transposeSemitones = 0;
+      updateTempoDisplay();
+      updateTransposeDisplay();
+
+      const patternGroup = document.getElementById("patternControlGroup");
+      patternGroup.style.opacity = songData.isTwoHandPianoSheet ? "0.45" : "1";
+      document.getElementById("patternSelect").disabled = songData.isTwoHandPianoSheet;
+
+      renderPatternSelect();
+      buildPhrases();
+      rebuildActiveNotes();
+    }
+
+    /********************************************************************
+     * 7. TÁCH CÂU NHẠC VÀ HỖ TRỢ NHẬP NHANH DÃY CÂU (KIỂM TRA KIỂU IN PC)
+     ********************************************************************/
+    function buildPhrases() {
+      phrases = [];
+      selectedPhraseIndices.clear();
+      if (!songData) return;
+
+      const rhNotes = [...songData.rawRightNotes].sort((a, b) => a.startQuarter - b.startQuarter);
+      if (rhNotes.length === 0) return;
+
+      const hasLyricsPunctuation = rhNotes.some((n) => n.lyric && /[.?!;…]/.test(n.lyric));
+      const cutPoints = [];
+
+      if (hasLyricsPunctuation) {
+        rhNotes.forEach((n) => {
+          if (n.lyric && /[.?!;…]/.test(n.lyric)) {
+            cutPoints.push(n.startQuarter + n.durationQuarter);
+          }
+        });
+      } else {
+        const sortedRests = [...songData.rawRests].sort((a, b) => a.startQuarter - b.startQuarter);
+        let lastCut = 0;
+        sortedRests.forEach((r) => {
+          const notesInSegment = rhNotes.filter(
+            (n) => n.startQuarter >= lastCut - 0.05 && n.startQuarter < r.startQuarter + 0.05
+          );
+          if (notesInSegment.length >= 2) {
+            const cutAt = r.startQuarter + r.durationQuarter;
+            cutPoints.push(cutAt);
+            lastCut = cutAt;
+          }
+        });
+      }
+
+      let phraseStart = 0;
+      let phraseIdx = 1;
+
+      cutPoints.forEach((cutAt) => {
+        if (cutAt - phraseStart >= 0.5) {
+          const notesInside = rhNotes.filter(
+            (n) => n.startQuarter >= phraseStart - 0.05 && n.startQuarter < cutAt - 0.05
+          );
+          if (notesInside.length > 0) {
+            // Lấy lyric hoặc tên nốt đầu câu nếu bài không lời
+            let labelText = notesInside
+              .map((n) => n.lyric)
+              .filter(Boolean)
+              .join(" ")
+              .slice(0, 22);
+
+            if (!labelText) {
+              labelText = notesInside.slice(0, 3).map((n) => getNoteLabel(n.midi)).join(" - ") + "...";
+            }
+
+            phrases.push({
+              index: phraseIdx++,
+              startQuarter: phraseStart,
+              endQuarter: cutAt,
+              lyricPreview: labelText
+            });
+            phraseStart = cutAt;
+          }
+        }
+      });
+
+      if (songData.totalQuarters - phraseStart >= 0.5) {
+        const remainingNotes = rhNotes.filter((n) => n.startQuarter >= phraseStart - 0.05);
+        if (remainingNotes.length > 0) {
+          let labelText = remainingNotes
+            .map((n) => n.lyric)
+            .filter(Boolean)
+            .join(" ")
+            .slice(0, 22);
+
+          if (!labelText) {
+            labelText = remainingNotes.slice(0, 3).map((n) => getNoteLabel(n.midi)).join(" - ") + "...";
+          }
+
+          phrases.push({
+            index: phraseIdx++,
+            startQuarter: phraseStart,
+            endQuarter: songData.totalQuarters,
+            lyricPreview: labelText
+          });
+        }
+      }
+
+      if (phrases.length <= 1 && songData.measuresInfo.length > 4) {
+        phrases = [];
+        for (let i = 0; i < songData.measuresInfo.length; i += 4) {
+          const mStart = songData.measuresInfo[i].startQuarter;
+          const mEndObj = songData.measuresInfo[Math.min(i + 3, songData.measuresInfo.length - 1)];
+          const mEnd = mEndObj.startQuarter + mEndObj.durationQuarter;
+          phrases.push({
+            index: phrases.length + 1,
+            startQuarter: mStart,
+            endQuarter: mEnd,
+            lyricPreview: `Ô nhịp ${i + 1} - ${Math.min(i + 4, songData.measuresInfo.length)}`
+          });
+        }
+      }
+
+      phrases.forEach((_, idx) => selectedPhraseIndices.add(idx));
+      renderPhraseModalGrid();
+      updatePhraseButtonLabel();
+      updatePhraseRangeInputFromSelection();
+      resetCursorToFirstSelectedPhrase();
+    }
+
+    function updatePhraseButtonLabel() {
+      const btn = document.getElementById("btnOpenPhrases");
+      btn.textContent = `🔁 Chọn câu (${selectedPhraseIndices.size}/${phrases.length})`;
+    }
+
+    // Chuyển đổi từ Set các câu đã chọn thành chuỗi input (VD: "1-5, 8, 10")
+    function updatePhraseRangeInputFromSelection() {
+      const input = document.getElementById("phraseRangeInput");
+      if (!input) return;
+      const arr = Array.from(selectedPhraseIndices).map((i) => i + 1).sort((a, b) => a - b);
+      if (arr.length === 0) {
+        input.value = "";
+        return;
+      }
+      const ranges = [];
+      let start = arr[0];
+      let prev = arr[0];
+      for (let i = 1; i < arr.length; i++) {
+        if (arr[i] === prev + 1) {
+          prev = arr[i];
+        } else {
+          ranges.push(start === prev ? `${start}` : `${start}-${prev}`);
+          start = arr[i];
+          prev = arr[i];
+        }
+      }
+      ranges.push(start === prev ? `${start}` : `${start}-${prev}`);
+      input.value = ranges.join(", ");
+    }
+
+    // Phân tích chuỗi nhập nhanh ở ô input thành danh sách câu được chọn
+    function parsePhraseRangeInput(str) {
+      const newSet = new Set();
+      if (!str.trim()) return newSet;
+      const parts = str.split(/[\s,]+/);
+      parts.forEach((part) => {
+        if (!part) return;
+        if (part.includes("-")) {
+          const [s, e] = part.split("-").map((x) => parseInt(x, 10));
+          if (!isNaN(s) && !isNaN(e)) {
+            const min = Math.min(s, e);
+            const max = Math.max(s, e);
+            for (let n = min; n <= max; n++) {
+              if (n >= 1 && n <= phrases.length) newSet.add(n - 1);
+            }
+          }
+        } else {
+          const num = parseInt(part, 10);
+          if (!isNaN(num) && num >= 1 && num <= phrases.length) {
+            newSet.add(num - 1);
+          }
+        }
+      });
+      return newSet;
+    }
+
+    function renderPhraseModalGrid() {
+      const container = document.getElementById("phraseModalGrid");
+      container.innerHTML = "";
+      phrases.forEach((p, idx) => {
+        const chip = document.createElement("div");
+        chip.className = "phrase-chip" + (selectedPhraseIndices.has(idx) ? " selected" : "");
+        chip.innerHTML = `
+          <b>Câu ${p.index}</b><br/>
+          <small style="color:var(--text-muted);">${p.lyricPreview || `Phách ${Math.round(p.startQuarter + 1)}–${Math.round(p.endQuarter)}`}</small>
+        `;
+        chip.addEventListener("click", () => {
+          if (selectedPhraseIndices.has(idx)) {
+            if (selectedPhraseIndices.size > 1) {
+              selectedPhraseIndices.delete(idx);
+            }
+          } else {
+            selectedPhraseIndices.add(idx);
+          }
+          renderPhraseModalGrid();
+          updatePhraseButtonLabel();
+          updatePhraseRangeInputFromSelection();
+          resetCursorToFirstSelectedPhrase();
+        });
+        container.appendChild(chip);
+      });
+      if (songData) {
+        document.getElementById("phraseInfoSummary").textContent = `Nhịp: ${songData.beats}/${songData.beatType}`;
+      }
+    }
+
+    function getDiatonicChordFromFirstNote(melodyMidi, fifths) {
+      const tonicPc = FIFTHS_TO_TONIC_PC[String(fifths)] ?? 0;
+      const scaleIntervals = [0, 2, 4, 5, 7, 9, 11];
+      const scalePcs = scaleIntervals.map((iv) => (tonicPc + iv) % 12);
+
+      const notePc = ((melodyMidi % 12) + 12) % 12;
+      const degreeIndex = scalePcs.indexOf(notePc);
+
+      if (degreeIndex === 6) {
+        return { rootPc: scalePcs[4], quality: "major" };
+      } else if (degreeIndex === 1 || degreeIndex === 2 || degreeIndex === 5) {
+        return { rootPc: notePc, quality: "minor" };
+      } else {
+        return { rootPc: notePc, quality: "major" };
+      }
+    }
+
+    function degreeToSemitoneOffset(degreeNum, quality) {
+      const thirdInterval = quality === "minor" || quality === "dim" ? 3 : 4;
+      const fifthInterval = quality === "dim" ? 6 : 7;
+
+      switch (Number(degreeNum)) {
+        case 1: return 0;
+        case 2: return 2;
+        case 3: return thirdInterval;
+        case 4: return 5;
+        case 5: return fifthInterval;
+        case 6: return 9;
+        case 7: return 11;
+        case 8: return 12;
+        case 9: return 14;
+        case 10: return 12 + thirdInterval;
+        default: return 0;
+      }
+    }
+
+    function rebuildActiveNotes() {
+      if (!songData) return;
+
+      const generatedNotes = [];
+
+      songData.rawRightNotes.forEach((n) => {
+        generatedNotes.push({
+          midi: n.midi + transposeSemitones,
+          startQuarter: n.startQuarter,
+          durationQuarter: n.durationQuarter,
+          hand: "rh",
+          lyric: n.lyric
+        });
+      });
+
+      if (songData.isTwoHandPianoSheet) {
+        songData.rawLeftNotes.forEach((n) => {
+          generatedNotes.push({
+            midi: n.midi + transposeSemitones,
+            startQuarter: n.startQuarter,
+            durationQuarter: n.durationQuarter,
+            hand: "lh"
+          });
+        });
+      } else {
+        const patternObj = patterns.find((p) => p.id === currentPatternId) || patterns[0];
+        const patternSteps = patternObj ? parsePatternSteps(patternObj.notes) : [1, 3, 5, 3];
+        const beatStepQuarter = songData.beatType === 8 ? 0.5 : (4 / songData.beatType);
+
+        let lastChord = {
+          rootPc: FIFTHS_TO_TONIC_PC[String(songData.fifths)] ?? 0,
+          quality: "major"
+        };
+
+        songData.measuresInfo.forEach((m) => {
+          if (m.index === 0) return; // Ô nhịp đầu tiên không rải đệm
+
+          const rhInMeasure = songData.rawRightNotes.filter(
+            (n) => n.startQuarter >= m.startQuarter - 0.02 && n.startQuarter < m.startQuarter + m.durationQuarter - 0.02
+          );
+
+          if (rhInMeasure.length === 0 && m.harmonies.length === 0) return;
+
+          let chordSegments = [];
+          if (songData.hasExplicitChords && m.harmonies.length > 0) {
+            m.harmonies.forEach((h, idx) => {
+              const segStart = h.startQuarter;
+              const segEnd = idx + 1 < m.harmonies.length
+                ? m.harmonies[idx + 1].startQuarter
+                : m.startQuarter + m.durationQuarter;
+              chordSegments.push({
+                startQuarter: segStart,
+                endQuarter: segEnd,
+                rootPc: h.rootPc,
+                quality: h.quality
+              });
+              lastChord = { rootPc: h.rootPc, quality: h.quality };
+            });
+          } else {
+            if (rhInMeasure.length > 0) {
+              const firstMelodyNote = rhInMeasure[0];
+              lastChord = getDiatonicChordFromFirstNote(firstMelodyNote.midi, songData.fifths);
+            }
+            chordSegments.push({
+              startQuarter: m.startQuarter,
+              endQuarter: m.startQuarter + m.durationQuarter,
+              rootPc: lastChord.rootPc,
+              quality: lastChord.quality
+            });
+          }
+
+          chordSegments.forEach((seg) => {
+            let baseRootMidi = 48 + seg.rootPc + transposeSemitones;
+            while (baseRootMidi > 59) baseRootMidi -= 12;
+            while (baseRootMidi < 45) baseRootMidi += 12;
+
+            const numBeatsInSeg = Math.floor((seg.endQuarter - seg.startQuarter + 0.01) / beatStepQuarter);
+            if (numBeatsInSeg <= 0) return;
+
+            const trialNotes = [];
+            for (let b = 0; b < numBeatsInSeg; b++) {
+              const stepEntry = patternSteps[b % patternSteps.length];
+              const degreesList = Array.isArray(stepEntry) ? stepEntry : [stepEntry];
+              const noteStartQ = seg.startQuarter + b * beatStepQuarter;
+
+              degreesList.forEach((deg) => {
+                const semitoneOffset = degreeToSemitoneOffset(deg, seg.quality);
+                trialNotes.push({
+                  midi: baseRootMidi + semitoneOffset,
+                  startQuarter: noteStartQ,
+                  durationQuarter: beatStepQuarter * 0.92
+                });
+              });
+            }
+
+            let hasCollision = false;
+            for (const lhN of trialNotes) {
+              const activeRhAtBeat = generatedNotes.filter(
+                (rhN) =>
+                  rhN.hand === "rh" &&
+                  rhN.startQuarter < lhN.startQuarter + lhN.durationQuarter - 0.02 &&
+                  rhN.startQuarter + rhN.durationQuarter > lhN.startQuarter + 0.02
+              );
+              for (const rhN of activeRhAtBeat) {
+                if (lhN.midi >= rhN.midi - 1) {
+                  hasCollision = true;
+                  break;
+                }
+              }
+              if (hasCollision) break;
+            }
+
+            const octaveShift = hasCollision ? -12 : 0;
+            trialNotes.forEach((lhN) => {
+              generatedNotes.push({
+                midi: lhN.midi + octaveShift,
+                startQuarter: lhN.startQuarter,
+                durationQuarter: lhN.durationQuarter,
+                hand: "lh"
+              });
+            });
+          });
+        });
+      }
+
+      activeNotes = generatedNotes.sort((a, b) => a.startQuarter - b.startQuarter || a.midi - b.midi);
+
+      // CỐ ĐỊNH Ô LYRIC LUÔN BÊN PHẢI (Trừ khi sát mép phải màn hình)
+      const chordMap = new Map();
+      activeNotes.forEach((n) => {
+        if (n.hand !== "rh") return;
+        const key = n.startQuarter.toFixed(3);
+        if (!chordMap.has(key)) {
+          chordMap.set(key, {
+            startQuarter: n.startQuarter,
+            minMidi: n.midi,
+            maxMidi: n.midi,
+            lyric: n.lyric || "",
+            side: "right"
+          });
+        } else {
+          const grp = chordMap.get(key);
+          if (n.midi < grp.minMidi) grp.minMidi = n.midi;
+          if (n.midi > grp.maxMidi) grp.maxMidi = n.midi;
+          if (n.lyric && !grp.lyric) grp.lyric = n.lyric;
+        }
+      });
+
+      rhChordGroupsList = Array.from(chordMap.values()).sort((a, b) => a.startQuarter - b.startQuarter);
+
+      activeNotes.forEach((n) => {
+        n.lyricGroup = null;
+        if (n.hand === "rh") {
+          const key = n.startQuarter.toFixed(3);
+          const grp = chordMap.get(key);
+          if (grp && grp.lyric && n.midi === grp.maxMidi && !grp._assigned) {
+            grp._assigned = true;
+            n.lyricGroup = grp;
+          }
+        }
+      });
+    }
+
+    /********************************************************************
+     * 8. VÒNG LẶP PHÁT NHẠC & ĐẾM NHỊP CHỜ
+     ********************************************************************/
+    function getOrderedSelectedPhrases() {
+      const indices = Array.from(selectedPhraseIndices).sort((a, b) => a - b);
+      return indices.map((i) => phrases[i]).filter(Boolean);
+    }
+
+    function resetCursorToFirstSelectedPhrase() {
+      const selected = getOrderedSelectedPhrases();
+      if (selected.length > 0) {
+        currentBeat = selected[0].startQuarter;
+      } else {
+        currentBeat = 0;
+      }
+      triggeredNotesSet.clear();
+      isCountingIn = false;
+      document.getElementById("countInOverlay").style.display = "none";
+    }
+
+    function startCountInBeforeNextLoop(nextTargetQuarter) {
+      if (countInBeatsSetting <= 0) {
+        currentBeat = nextTargetQuarter;
+        triggeredNotesSet.clear();
+        return;
+      }
+      isCountingIn = true;
+      countInRemainingBeats = countInBeatsSetting;
+      lastCountInInt = -1;
+      currentBeat = nextTargetQuarter;
+      triggeredNotesSet.clear();
+      const overlay = document.getElementById("countInOverlay");
+      overlay.style.display = "block";
+    }
+
+    function updatePlayback(deltaSeconds) {
+      if (!isPlaying || !songData) return;
+
+      const quartersPerSecond = currentBpm / 60;
+      const deltaQuarters = deltaSeconds * quartersPerSecond;
+
+      if (isCountingIn) {
+        countInRemainingBeats -= deltaQuarters;
+        const ceilBeat = Math.ceil(countInRemainingBeats);
+        if (ceilBeat !== lastCountInInt && ceilBeat > 0) {
+          lastCountInInt = ceilBeat;
+          document.getElementById("countInOverlay").textContent = `Nhịp chờ: ${ceilBeat}`;
+          playMetronomeTick(ceilBeat === countInBeatsSetting);
+        }
+        if (countInRemainingBeats <= 0) {
+          isCountingIn = false;
+          document.getElementById("countInOverlay").style.display = "none";
+        }
+        return;
+      }
+
+      const prevBeat = currentBeat;
+      currentBeat += deltaQuarters;
+
+      activeNotes.forEach((n, idx) => {
+        if (n.startQuarter >= prevBeat - 0.02 && n.startQuarter <= currentBeat) {
+          if (!triggeredNotesSet.has(idx)) {
+            triggeredNotesSet.add(idx);
+            const durSec = n.durationQuarter / quartersPerSecond;
+            playPianoNote(n.midi, durSec, n.hand);
+          }
+        }
+      });
+
+      const selected = getOrderedSelectedPhrases();
+      if (selected.length > 0) {
+        let currentPhrasePos = selected.findIndex(
+          (p) => prevBeat >= p.startQuarter - 0.05 && prevBeat <= p.endQuarter + 0.05
+        );
+
+        if (currentPhrasePos === -1) {
+          currentPhrasePos = 0;
+        }
+
+        const activePhrase = selected[currentPhrasePos];
+        if (currentBeat >= activePhrase.endQuarter) {
+          if (currentPhrasePos + 1 < selected.length) {
+            const nextPhrase = selected[currentPhrasePos + 1];
+            if (Math.abs(nextPhrase.startQuarter - activePhrase.endQuarter) > 0.1) {
+              currentBeat = nextPhrase.startQuarter;
+              triggeredNotesSet.clear();
+            }
+          } else {
+            startCountInBeforeNextLoop(selected[0].startQuarter);
+          }
+        }
+      } else if (currentBeat >= songData.totalQuarters) {
+        startCountInBeforeNextLoop(0);
+      }
+    }
+
+    function togglePlayPause() {
+      ensureAudioContext();
+      isPlaying = !isPlaying;
+      const btn = document.getElementById("btnPlayPause");
+      if (isPlaying) {
+        btn.textContent = "⏸ Tạm dừng";
+        btn.classList.add("playing");
+      } else {
+        btn.textContent = "▶ Tiếp tục";
+        btn.classList.remove("playing");
+      }
+    }
+
+    function stopPlayback() {
+      isPlaying = false;
+      isCountingIn = false;
+      document.getElementById("countInOverlay").style.display = "none";
+      const btn = document.getElementById("btnPlayPause");
+      btn.textContent = "▶ Bắt đầu";
+      btn.classList.remove("playing");
+    }
+
+    /********************************************************************
+     * 9. VẼ DÒNG KHUÔNG NHẠC 2 KHÓA (SOL & FA) VÀ ĐẦY ĐỦ DẤU LẶNG
+     ********************************************************************/
+    const canvas = document.getElementById("pianoCanvas");
+    const ctx = canvas.getContext("2d");
+
+    function isBlackKey(midi) {
+      const pc = ((midi % 12) + 12) % 12;
+      return [1, 3, 6, 8, 10].includes(pc);
+    }
+
+    function getNoteLabel(midi) {
+      const pc = ((midi % 12) + 12) % 12;
+      if (noteLabelMode === "solfege") {
+        return SEMITONE_TO_SOLFEGE[pc];
+      }
+      return SEMITONE_TO_LETTER[pc];
+    }
+
+    function resizeCanvas() {
+      const stage = document.getElementById("stageContainer");
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = stage.clientWidth * dpr;
+      canvas.height = stage.clientHeight * dpr;
+      canvas.style.width = stage.clientWidth + "px";
+      canvas.style.height = stage.clientHeight + "px";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    function getSheetDiatonicInfo(rawNote) {
+      if (transposeSemitones === 0 && rawNote.step) {
+        const stepIdx = STEP_TO_DIATONIC_IDX[rawNote.step] ?? 0;
+        const acc = rawNote.alter === 1 ? "#" : (rawNote.alter === -1 ? "b" : "");
+        return {
+          diatonicStep: rawNote.octave * 7 + stepIdx,
+          acc
+        };
+      }
+      const transMidi = rawNote.midi + transposeSemitones;
+      const octave = Math.floor(transMidi / 12) - 1;
+      const pc = ((transMidi % 12) + 12) % 12;
+      const mapped = PC_TO_DIATONIC[pc];
+      return {
+        diatonicStep: octave * 7 + mapped.stepIdx,
+        acc: mapped.acc
+      };
+    }
+
+    // ----- BẢNG TRƯỜNG ĐỘ: dùng cho nốt tự sinh (không có thẻ <type> trong file) -----
+    const DUR_TABLE = [
+      { q: 6,     base: 4,    dotted: true  },
+      { q: 4,     base: 4,    dotted: false },
+      { q: 3,     base: 2,    dotted: true  },
+      { q: 2,     base: 2,    dotted: false },
+      { q: 1.5,   base: 1,    dotted: true  },
+      { q: 1,     base: 1,    dotted: false },
+      { q: 0.75,  base: 0.5,  dotted: true  },
+      { q: 0.5,   base: 0.5,  dotted: false },
+      { q: 0.375, base: 0.25, dotted: true  },
+      { q: 0.25,  base: 0.25, dotted: false }
+    ];
+    function classifyDur(d) {
+      d = Math.max(d, 0.1);
+      let best = DUR_TABLE[0], bd = Infinity;
+      for (const e of DUR_TABLE) {
+        const diff = Math.abs(Math.log(d / e.q));
+        if (diff < bd) { bd = diff; best = e; }
+      }
+      return best;
+    }
+    const TYPE_TO_QUARTER = { whole: 4, half: 2, quarter: 1, eighth: 0.5, "16th": 0.25, "32nd": 0.125, "64th": 0.0625 };
+    function getDurInfo(n) {
+      if (n.fullMeasure) return { base: 4, dotted: false };
+      const b = TYPE_TO_QUARTER[n.noteType];
+      if (b) return { base: b, dotted: !!n.isDotted };
+      const c = classifyDur(n.durationQuarter);
+      return { base: c.base, dotted: c.dotted };
+    }
+
+    // HÀM VẼ KHÓA SOL VÀ SỐ CHỈ NHỊP CỐ ĐỊNH Ở CẠNH TRÁI
+      function drawFixedClefBox(width, bannerHeight) {
+        ctx.save();
+        // Nền ô chứa khóa nhạc
+        ctx.fillStyle = "#F5E9D6";
+        ctx.fillRect(0, 0, 48, bannerHeight);
+        ctx.strokeStyle = "#C7B299";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(48, 0);
+        ctx.lineTo(48, bannerHeight);
+        ctx.stroke();
+
+        const lineSpacing = 8;
+        const showLyricOnSheet = showLyricMode === "both" || showLyricMode === "sheet";
+        const topLineY = showLyricOnSheet ? 16 : 22;
+        const bottomLineY = topLineY + 4 * lineSpacing;
+
+        // Vẽ ký hiệu Khóa Sol (𝄞)
+        ctx.fillStyle = "#3E2723";
+        ctx.font = "32px serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("𝄞", 20, topLineY + 2 * lineSpacing + 2);
+
+        // Vẽ Số chỉ nhịp (VD: 4/4) ngay bên cạnh Khóa Sol
+        if (songData) {
+          ctx.font = "700 12px Lexend";
+          ctx.textAlign = "left";
+          ctx.textBaseline = "alphabetic";
+          ctx.fillText(String(songData.beats), 34, topLineY + 12);
+          ctx.fillText(String(songData.beatType), 34, bottomLineY - 2);
+        }
+        ctx.restore();
+      }
+
+    function drawScrollingSheetStaff(width, bannerHeight) {
+      ctx.save();
+
+      // THÊM 2 DÒNG NÀY ĐỂ NỐT NÀO VƯỢT QUÁ KHUNG KHUÔNG NHẠC SẼ TỰ ĐỘNG BỊ CẮT BỎ (KHÔNG TRÀN XUỐNG DƯỚI)
+      ctx.beginPath();
+      ctx.rect(0, 0, width, bannerHeight);
+      ctx.clip();
+
+
+
+      ctx.fillStyle = "#FDF9F1";
+      ctx.fillRect(0, 0, width, bannerHeight);
+
+      ctx.strokeStyle = "#B89F82";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, bannerHeight - 1);
+      ctx.lineTo(width, bannerHeight - 1);
+      ctx.stroke();
+
+      const showLyricOnSheet = showLyricMode === "both" || showLyricMode === "sheet";
+      const isTwoStaff = sheetClefMode === "both" || (sheetClefMode === "auto" && songData && songData.isTwoHandPianoSheet);
+      
+      const lineSpacing = isTwoStaff ? 6 : 8;
+      const trebleTopY = showLyricOnSheet ? 12 : 16;
+      const trebleBottomY = trebleTopY + 4 * lineSpacing;
+      const playheadX = width * 0.42;
+      const pxPerQuarter = 96;
+
+      // Xác định các khuông nhạc cần vẽ dựa trên cài đặt
+      const drawTreble = sheetClefMode === "treble" || sheetClefMode === "both" || sheetClefMode === "auto";
+      const drawBass = sheetClefMode === "bass" || sheetClefMode === "both" || (sheetClefMode === "auto" && songData && songData.isTwoHandPianoSheet);
+
+      // 1. Vẽ 5 dòng kẻ khuông Khóa Sol (Treble)
+      if (drawTreble) {
+        ctx.strokeStyle = "#5D4037";
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 5; i++) {
+          const ly = trebleTopY + i * lineSpacing;
+          ctx.beginPath();
+          ctx.moveTo(0, ly);
+          ctx.lineTo(width, ly);
+          ctx.stroke();
+        }
+      }
+
+      let bassTopY = trebleBottomY + 16;
+      let bassBottomY = bassTopY + 4 * lineSpacing;
+
+      // 2. Vẽ 5 dòng kẻ khuông Khóa Fa (Bass) nếu có
+      if (drawBass) {
+        ctx.strokeStyle = "#5D4037";
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 5; i++) {
+          const ly = bassTopY + i * lineSpacing;
+          ctx.beginPath();
+          ctx.moveTo(0, ly);
+          ctx.lineTo(width, ly);
+          ctx.stroke();
+        }
+      }
+
+      if (!songData) {
+        ctx.restore();
+        return;
+      }
+
+      const firstM = songData.measuresInfo[0];
+      const hasPickup = firstM && firstM.durationQuarter < (songData.beats * 4) / songData.beatType - 0.1;
+
+      // Vẽ vạch nhịp
+      songData.measuresInfo.forEach((m) => {
+        const barX = playheadX + (m.startQuarter - currentBeat) * pxPerQuarter - 14;
+        if (barX >= 48 && barX <= width + 20) {
+          ctx.strokeStyle = "#4E342E";
+          ctx.lineWidth = 1.4;
+          ctx.beginPath();
+          ctx.moveTo(barX, drawTreble ? trebleTopY : bassTopY);
+          ctx.lineTo(barX, drawBass ? bassBottomY : trebleBottomY);
+          ctx.stroke();
+
+          const displayMeasureNum = hasPickup ? m.index : m.index + 1;
+          if (displayMeasureNum > 0) {
+            ctx.fillStyle = "#8D6E63";
+            ctx.font = "600 10px Lexend";
+            ctx.textAlign = "left";
+            ctx.fillText(`${displayMeasureNum}`, barX + 3, (drawTreble ? trebleTopY : bassTopY) - 4);
+          }
+        }
+      });
+
+      const minVisibleQ = currentBeat - (playheadX / pxPerQuarter) - 2;
+      const maxVisibleQ = currentBeat + ((width - playheadX) / pxPerQuarter) + 2;
+
+      // Tay trái tự sinh (bài 1 khuông): dựng nốt + dấu lặng cho khóa Fa
+      function buildAutoLhSheetNotes(minQ, maxQ) {
+        const out = [];
+        songData.measuresInfo.forEach((m) => {
+          const mEnd = m.startQuarter + m.durationQuarter;
+          if (mEnd < minQ || m.startQuarter > maxQ) return;
+          const mkRest = (st, d, full) => ({
+            isRest: true, staff: 2, voice: "1",
+            startQuarter: st, durationQuarter: d,
+            measureIndex: m.index, beamState: "", lyric: "", fullMeasure: !!full
+          });
+          const ns = activeNotes.filter((n) =>
+            n.hand === "lh" &&
+            n.startQuarter >= m.startQuarter - 0.02 &&
+            n.startQuarter < mEnd - 0.02);
+          if (ns.length === 0) {
+            out.push(mkRest(m.startQuarter, m.durationQuarter, true));
+            return;
+          }
+          ns.forEach((n) => out.push({
+            isRest: false, staff: 2, voice: "1",
+            midi: n.midi - transposeSemitones,
+            startQuarter: n.startQuarter,
+            durationQuarter: n.durationQuarter,
+            measureIndex: m.index, beamState: "", lyric: ""
+          }));
+          let cursor = m.startQuarter;
+          const starts = [...new Set(ns.map((n) => n.startQuarter.toFixed(3)))].map(Number).sort((a, b) => a - b);
+          starts.forEach((st) => {
+            if (st - cursor > 0.2) out.push(mkRest(cursor, st - cursor, false));
+            const end = Math.max(...ns
+              .filter((n) => Math.abs(n.startQuarter - st) < 0.001)
+              .map((n) => n.startQuarter + n.durationQuarter));
+            cursor = Math.max(cursor, end);
+          });
+          if (mEnd - cursor > 0.2) out.push(mkRest(cursor, mEnd - cursor, false));
+        });
+        return out;
+      }
+
+      const needAutoLh = drawBass && !songData.hasLhInSheet && handMode !== "rh";
+      const autoLhNotes = needAutoLh ? buildAutoLhSheetNotes(minVisibleQ, maxVisibleQ) : [];
+
+      const allVisibleNotes = [...songData.rawSheetNotes, ...autoLhNotes].filter((n) => {
+        if (n.startQuarter + n.durationQuarter < minVisibleQ || n.startQuarter > maxVisibleQ) return false;
+        if (n.staff === 2) {
+          if (!drawBass) return false;
+          if (handMode === "rh") return false;
+        } else if (!drawTreble) {
+          return false;
+        }
+        return true;
+      });
+
+      // Gom nhóm theo khuông + bè (voice) + thời điểm
+      const chordGroupsMap = new Map();
+      allVisibleNotes.forEach((n) => {
+        const staff = n.staff === 2 ? 2 : 1;
+        const voice = n.voice || "1";
+        const key = `${staff}_${voice}_${n.startQuarter.toFixed(3)}`;
+        if (!chordGroupsMap.has(key)) {
+          const di = getDurInfo(n);
+          chordGroupsMap.set(key, {
+            staff,
+            voice,
+            startQuarter: n.startQuarter,
+            durationQuarter: n.durationQuarter,
+            baseDur: di.base,
+            isDotted: di.dotted,
+            measureIndex: n.measureIndex,
+            beamState: n.beamState,
+            notes: [],
+            lyric: ""
+          });
+        }
+        const grp = chordGroupsMap.get(key);
+        grp.notes.push(n);
+        if (n.lyric && !grp.lyric) grp.lyric = n.lyric;
+        if (n.beamState && !grp.beamState) grp.beamState = n.beamState;
+      });
+
+      const chordGroups = Array.from(chordGroupsMap.values()).sort(
+        (a, b) => a.startQuarter - b.startQuarter
+      );
+
+      const rx = 4.8;
+      const ry = 3.5;
+
+      // 1. Tính tọa độ và hướng đuôi nốt (Dưới dòng kẻ 3 B4=34 thì đuôi quay LÊN, từ B4 trở lên đuôi quay XUỐNG)
+      chordGroups.forEach((grp) => {
+        grp.x = playheadX + (grp.startQuarter - currentBeat) * pxPerQuarter;
+        grp.isActive = !isCountingIn && currentBeat >= grp.startQuarter - 0.03 && currentBeat < grp.startQuarter + grp.durationQuarter;
+
+        const pitchedNotes = grp.notes.filter((n) => !n.isRest);
+        grp.isRestOnly = pitchedNotes.length === 0;
+
+        grp.noteItems = pitchedNotes.map((n) => {
+          const info = getSheetDiatonicInfo(n);
+          const isBass = grp.staff === 2 || !drawTreble;
+          const targetBottomY = isBass ? bassBottomY : trebleBottomY;
+          const refStep = isBass ? 18 : 30; // Sol2 = 18 (Khóa Fa dòng 1), E4 = 30 (Khóa Sol dòng 1)
+          const y = targetBottomY - (info.diatonicStep - refStep) * (lineSpacing / 2);
+          return { raw: n, diatonicStep: info.diatonicStep, acc: info.acc, y, isBass };
+        }).sort((a, b) => a.diatonicStep - b.diatonicStep);
+
+        if (!grp.isRestOnly) {
+          grp.lowestY = grp.noteItems[0].y;
+          grp.highestY = grp.noteItems[grp.noteItems.length - 1].y;
+          grp.lowestStep = grp.noteItems[0].diatonicStep;
+          grp.highestStep = grp.noteItems[grp.noteItems.length - 1].diatonicStep;
+          const avgStep = (grp.lowestStep + grp.highestStep) / 2;
+          const midStep = grp.noteItems[0].isBass ? 22 : 34; // Khóa Fa lật đuôi ở Re3 (22), Khóa Sol ở B4 (34)
+          grp.stemDown = avgStep >= midStep;
+        }
+      });
+
+      // 2. Gom nhóm chùm nốt móc đơn / móc kép (Beams)
+      const beamClusters = [];
+      const lanes = new Map();
+      chordGroups.forEach((g) => {
+        const k = g.staff + "_" + g.voice;
+        if (!lanes.has(k)) lanes.set(k, []);
+        lanes.get(k).push(g);
+      });
+      lanes.forEach((list) => {
+        let currentCluster = [];
+        list.forEach((grp) => {
+          const isBeamable = !grp.isRestOnly && grp.baseDur <= 0.5;
+          if (!isBeamable) {
+            if (currentCluster.length >= 2) beamClusters.push(currentCluster);
+            currentCluster = [];
+            return;
+          }
+          if (currentCluster.length === 0) {
+            currentCluster.push(grp);
+            return;
+          }
+          const prev = currentCluster[currentCluster.length - 1];
+          const gap = grp.startQuarter - (prev.startQuarter + prev.durationQuarter);
+          const sameMeasure = grp.measureIndex === prev.measureIndex;
+          const beamBreak = prev.beamState === "end" || grp.beamState === "begin";
+          if (sameMeasure && Math.abs(gap) < 0.08 && !beamBreak && currentCluster.length < 4) {
+            currentCluster.push(grp);
+          } else {
+            if (currentCluster.length >= 2) beamClusters.push(currentCluster);
+            currentCluster = [grp];
+          }
+        });
+        if (currentCluster.length >= 2) beamClusters.push(currentCluster);
+      });
+
+      const beamedSet = new Set();
+      beamClusters.forEach((cluster) => {
+        const avg = cluster.reduce((sum, g) => sum + (g.lowestStep + g.highestStep) / 2, 0) / cluster.length;
+        const clusterStemDown = avg >= (cluster[0].noteItems[0].isBass ? 22 : 34);
+        cluster.forEach((g) => {
+          g.stemDown = clusterStemDown;
+          beamedSet.add(g);
+        });
+      });
+
+      // 3. Hàm vẽ đầy đủ mọi loại Dấu Lặng bằng Canvas (Không bao giờ bị lỗi thiếu font)
+      function drawCanvasRest(x, topY, spacing, durQ, color, dotted) {
+        ctx.save();
+        ctx.fillStyle = color;
+        ctx.strokeStyle = color;
+        const midY = topY + 2 * spacing; // Dòng kẻ 3 (giữa khuông)
+        if (durQ >= 3.5) {
+          // Lặng tròn: Hình chữ nhật treo dưới dòng kẻ 4 (topY + spacing)
+          ctx.fillRect(x - 6, topY + spacing, 12, spacing * 0.55);
+        } else if (durQ >= 1.75) {
+          // Lặng trắng: Hình chữ nhật nằm trên dòng kẻ 3 (midY)
+          ctx.fillRect(x - 6, midY - spacing * 0.55, 12, spacing * 0.55);
+        } else if (durQ >= 0.85) {
+          // Lặng đen: Đường gấp khúc chuẩn
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x - 2, midY - spacing * 1.1);
+          ctx.lineTo(x + 3, midY - spacing * 0.3);
+          ctx.lineTo(x - 3, midY + spacing * 0.3);
+          ctx.lineTo(x + 2, midY + spacing * 0.9);
+          ctx.quadraticCurveTo(x - 4, midY + spacing * 1.3, x - 3, midY + spacing * 0.7);
+          ctx.stroke();
+        } else {
+          // Lặng móc đơn (1 móc) hoặc Lặng móc kép (2 móc)
+          const is16th = durQ <= 0.3;
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.moveTo(x + 3, midY - spacing * 0.8);
+          ctx.lineTo(x - 2, midY + spacing * 1.1);
+          ctx.stroke();
+          // Móc thứ 1
+          ctx.beginPath();
+          ctx.arc(x - 2, midY - spacing * 0.5, 2.3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.moveTo(x - 2, midY - spacing * 0.3);
+          ctx.quadraticCurveTo(x + 1, midY - spacing * 0.2, x + 2.5, midY - spacing * 0.6);
+          ctx.stroke();
+          // Móc thứ 2 (nếu là lặng móc kép)
+          if (is16th) {
+            ctx.beginPath();
+            ctx.arc(x - 3.5, midY + spacing * 0.2, 2.3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(x - 3.5, midY + spacing * 0.4);
+            ctx.quadraticCurveTo(x - 0.5, midY + spacing * 0.5, x + 1, midY + spacing * 0.1);
+            ctx.stroke();
+          }
+        }
+        if (dotted) {
+          ctx.beginPath();
+          ctx.arc(x + 9, topY + 2 * spacing - spacing * 0.5, 1.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // 4. Vẽ Dấu lặng, Dòng kẻ phụ, Đầu nốt, Đuôi nốt lẻ và Móc đơn/Móc kép
+      chordGroups.forEach((grp, gIdx) => {
+        if (grp.x < 42 || grp.x > width + 20) return;
+        const noteColor = grp.isActive ? "#C62828" : "#1E1410";
+
+        if (grp.isRestOnly) {
+          const restTopY = grp.staff === 2 ? bassTopY : trebleTopY;
+          const hasOtherVoice = chordGroups.some((g) =>
+            g !== grp && g.staff === grp.staff && !g.isRestOnly &&
+            Math.abs(g.startQuarter - grp.startQuarter) < 0.01);
+          const restShift = hasOtherVoice ? (grp.voice === "1" ? -1 : 1) * lineSpacing * 1.6 : 0;
+          drawCanvasRest(grp.x, restTopY + restShift, lineSpacing, grp.baseDur, noteColor, grp.isDotted);
+          return;
+        }
+
+        const isHollow = grp.baseDur >= 2;
+        const isWhole = grp.baseDur >= 4;
+
+        // Dòng kẻ phụ dưới E4 (<= 28) và trên F5 (>= 40)
+        ctx.strokeStyle = "#4E342E";
+        ctx.lineWidth = 1.2;
+        grp.noteItems.forEach((item) => {
+          const refBottom = item.isBass ? bassBottomY : trebleBottomY;
+          const refS = item.isBass ? 18 : 30;
+          if (item.diatonicStep <= refS - 2) { // Dòng kẻ phụ dưới
+            for (let st = refS - 2; st >= item.diatonicStep; st -= 2) {
+              const ly = refBottom - (st - refS) * (lineSpacing / 2);
+              ctx.beginPath();
+              ctx.moveTo(grp.x - rx - 4, ly);
+              ctx.lineTo(grp.x + rx + 4, ly);
+              ctx.stroke();
+            }
+          }
+          if (item.diatonicStep >= refS + 10) { // Dòng kẻ phụ trên
+            for (let st = refS + 10; st <= item.diatonicStep; st += 2) {
+              const ly = refBottom - (st - refS) * (lineSpacing / 2);
+              ctx.beginPath();
+              ctx.moveTo(grp.x - rx - 4, ly);
+              ctx.lineTo(grp.x + rx + 4, ly);
+              ctx.stroke();
+            }
+          }
+        });
+
+        // Vẽ đầu nốt, chấm dôi, dấu hóa, dấu nối (tie)
+        grp.noteItems.forEach((item) => {
+          ctx.fillStyle = noteColor;
+          ctx.strokeStyle = noteColor;
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.ellipse(grp.x, item.y, rx, ry, -0.32, 0, Math.PI * 2);
+          if (isHollow) ctx.stroke();
+          else ctx.fill();
+
+          if (grp.isDotted) {
+            ctx.beginPath();
+            ctx.arc(grp.x + rx + 4, item.y - 1, 1.8, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          if (item.acc) {
+            ctx.font = "700 11px Lexend";
+            ctx.textAlign = "right";
+            ctx.fillText(item.acc === "#" ? "♯" : "♭", grp.x - rx - 2, item.y + 4);
+          }
+          if (item.raw.hasTieStart) {
+            const nextGrp = chordGroups.slice(gIdx + 1).find((g) => g.staff === grp.staff && g.voice === grp.voice && !g.isRestOnly);
+            const endX = nextGrp ? nextGrp.x : grp.x + grp.durationQuarter * pxPerQuarter;
+            if (endX > grp.x + 6) {
+              ctx.beginPath();
+              const midTieX = (grp.x + endX) / 2;
+              const dir = grp.stemDown ? -1 : 1;
+              ctx.moveTo(grp.x + rx, item.y + dir * 3);
+              ctx.quadraticCurveTo(midTieX, item.y + dir * 10, endX - rx, item.y + dir * 3);
+              ctx.stroke();
+            }
+          }
+        });
+
+        // Vẽ đuôi nốt (Stem) và cờ móc đơn / móc kép (Flags) cho nốt đứng lẻ (như chữ "Đoàn")
+        if (!beamedSet.has(grp) && !isWhole) {
+          ctx.strokeStyle = noteColor;
+          ctx.lineWidth = 1.5;
+          const is8th = grp.baseDur <= 0.5;
+          const is16th = grp.baseDur <= 0.25;
+
+          if (grp.stemDown) {
+            const stemX = grp.x - rx + 0.8;
+            const stemBotY = grp.lowestY + 22;
+            ctx.beginPath();
+            ctx.moveTo(stemX, grp.highestY);
+            ctx.lineTo(stemX, stemBotY);
+            ctx.stroke();
+            if (is8th) {
+              ctx.beginPath();
+              ctx.moveTo(stemX, stemBotY);
+              ctx.quadraticCurveTo(stemX + 8, stemBotY - 5, stemX + 6, stemBotY - 12);
+              ctx.stroke();
+            }
+            if (is16th) {
+              ctx.beginPath();
+              ctx.moveTo(stemX, stemBotY - 6);
+              ctx.quadraticCurveTo(stemX + 8, stemBotY - 11, stemX + 6, stemBotY - 18);
+              ctx.stroke();
+            }
+          } else {
+            const stemX = grp.x + rx - 0.8;
+            const stemTopY = grp.highestY - 22;
+            ctx.beginPath();
+            ctx.moveTo(stemX, grp.lowestY);
+            ctx.lineTo(stemX, stemTopY);
+            ctx.stroke();
+            if (is8th) {
+              ctx.beginPath();
+              ctx.moveTo(stemX, stemTopY);
+              ctx.quadraticCurveTo(stemX + 8, stemTopY + 5, stemX + 6, stemTopY + 12);
+              ctx.stroke();
+            }
+            if (is16th) {
+              ctx.beginPath();
+              ctx.moveTo(stemX, stemTopY + 6);
+              ctx.quadraticCurveTo(stemX + 8, stemTopY + 11, stemX + 6, stemTopY + 18);
+              ctx.stroke();
+            }
+          }
+        }
+
+        if (showLyricOnSheet && grp.lyric) {
+          ctx.font = `700 ${grp.isActive ? 13 : 12}px Lexend`;
+          ctx.fillStyle = grp.isActive ? "#C62828" : `rgba(62, 39, 35, ${lyricTextOpacity})`;
+          ctx.textAlign = "center";
+          ctx.fillText(grp.lyric, grp.x, bannerHeight - 6);
+        }
+      });
+
+      // 5. Vẽ dầm nối ngang (Beams) cho chùm nốt móc đơn & móc kép (như chữ "quân Việt")
+      beamClusters.forEach((cluster) => {
+        const first = cluster[0];
+        const last = cluster[cluster.length - 1];
+        if (last.x < 42 || first.x > width + 20) return;
+
+        const stemDown = first.stemDown;
+        const firstStemX = stemDown ? first.x - rx + 0.8 : first.x + rx - 0.8;
+        const lastStemX = stemDown ? last.x - rx + 0.8 : last.x + rx - 0.8;
+
+        let beamStartY, beamEndY;
+        if (stemDown) {
+          const maxLow = Math.max(...cluster.map((g) => g.lowestY));
+          const slope = Math.max(-6, Math.min(6, last.lowestY - first.lowestY));
+          beamStartY = maxLow + 20 - slope / 2;
+          beamEndY = maxLow + 20 + slope / 2;
+        } else {
+          const minHigh = Math.min(...cluster.map((g) => g.highestY));
+          const slope = Math.max(-6, Math.min(6, last.highestY - first.highestY));
+          beamStartY = minHigh - 20 - slope / 2;
+          beamEndY = minHigh - 20 + slope / 2;
+        }
+
+        ctx.strokeStyle = "#1E1410";
+        ctx.lineWidth = 1.5;
+        cluster.forEach((g) => {
+          const sx = stemDown ? g.x - rx + 0.8 : g.x + rx - 0.8;
+          const t = lastStemX === firstStemX ? 0 : (sx - firstStemX) / (lastStemX - firstStemX);
+          const targetY = beamStartY + t * (beamEndY - beamStartY);
+          ctx.beginPath();
+          ctx.moveTo(sx, stemDown ? g.highestY : g.lowestY);
+          ctx.lineTo(sx, targetY);
+          ctx.stroke();
+        });
+
+        // Vạch dầm số 1 (móc đơn)
+        ctx.lineWidth = 3.6;
+        ctx.beginPath();
+        ctx.moveTo(firstStemX - 0.5, beamStartY);
+        ctx.lineTo(lastStemX + 0.5, beamEndY);
+        ctx.stroke();
+
+        // Vạch dầm số 2 (nếu có nốt móc kép <= 0.3 phách như "quân Việt")
+        if (cluster.some((g) => g.baseDur <= 0.25)) {
+          const offset2 = stemDown ? -5.5 : 5.5;
+          ctx.beginPath();
+          ctx.moveTo(firstStemX - 0.5, beamStartY + offset2);
+          ctx.lineTo(lastStemX + 0.5, beamEndY + offset2);
+          ctx.stroke();
+        }
+      });
+
+      // Vạch chuẩn đọc nốt
+      ctx.strokeStyle = "rgba(198, 40, 40, 0.85)";
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(playheadX, 4);
+      ctx.lineTo(playheadX, bannerHeight - 4);
+      ctx.stroke();
+
+      ctx.fillStyle = "#C62828";
+      ctx.beginPath();
+      ctx.moveTo(playheadX - 5, 2);
+      ctx.lineTo(playheadX + 5, 2);
+      ctx.lineTo(playheadX, 9);
+      ctx.closePath();
+      ctx.fill();
+
+      // Hộp chứa Khóa Sol & Khóa Fa bên trái
+      // ctx.fillStyle = "#F5E9D6";
+      // ctx.fillRect(0, 0, 44, bannerHeight - 2);
+      // ctx.strokeStyle = "#C7B299";
+      // ctx.lineWidth = 1;
+      // ctx.beginPath();
+      // ctx.moveTo(44, 0);
+      // ctx.lineTo(44, bannerHeight - 2);
+      // ctx.stroke();
+
+      // if (drawTreble) {
+      //   ctx.fillStyle = "#3E2723";
+      //   ctx.font = "30px serif";
+      //   ctx.textAlign = "center";
+      //   ctx.fillText("𝄞", 16, trebleBottomY - 2);
+      // }
+
+      drawFixedClefBox(width, bannerHeight);
+
+      if (drawBass) {
+        ctx.fillStyle = "#3E2723";
+        ctx.font = "26px serif";
+        ctx.textAlign = "center";
+        ctx.fillText("𝄢", 16, bassBottomY - 2);
+      }
+
+      ctx.restore();
+    }
+
+    /********************************************************************
+     * 10. VẼ NỐT RƠI & TÔ MÀU VÀNG ĐẬM CHO PHÍM ĐÔ4 (MIDDLE C)
+     ********************************************************************/
+    function drawSynthesiaStage(timestamp) {
+      if (!lastFrameTime) lastFrameTime = timestamp;
+      const dt = Math.min((timestamp - lastFrameTime) / 1000, 0.1);
+      lastFrameTime = timestamp;
+
+      updatePlayback(dt);
+
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      const keyboardHeight = 20;
+      const isTwoStaff = sheetClefMode === "both" || (sheetClefMode === "auto" && songData && songData.isTwoHandPianoSheet);
+      const activeBannerH = showSheetStaff ? (isTwoStaff ? staffBannerHeight2 : staffBannerHeight1) : 0;
+      const hitLineY = height - keyboardHeight;
+      const fallingAreaHeight = Math.max(50, hitLineY - activeBannerH);
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = "#EFE4D2";
+      ctx.fillRect(0, 0, width, height);
+
+      let minMidi = 48;
+      let maxMidi = 72;
+
+      const relevantNotes = activeNotes.filter((n) => {
+        if (handMode === "rh" && n.hand === "lh") return false;
+        if (handMode === "lh" && n.hand === "rh") return false;
+        return true;
+      });
+
+      if (relevantNotes.length > 0) {
+        let lowest = 127;
+        let highest = 0;
+        relevantNotes.forEach((n) => {
+          if (n.midi < lowest) lowest = n.midi;
+          if (n.midi > highest) highest = n.midi;
+        });
+        minMidi = lowest;
+        maxMidi = highest;
+        if (isBlackKey(minMidi)) minMidi -= 1;
+        if (isBlackKey(maxMidi)) maxMidi += 1;
+      }
+
+      const whiteKeys = [];
+      for (let m = minMidi; m <= maxMidi; m++) {
+        if (!isBlackKey(m)) whiteKeys.push(m);
+      }
+      const whiteKeyWidth = width / Math.max(1, whiteKeys.length);
+      const keyGeometry = {};
+
+      whiteKeys.forEach((m, idx) => {
+        keyGeometry[m] = {
+          x: idx * whiteKeyWidth,
+          w: whiteKeyWidth,
+          isBlack: false
+        };
+      });
+
+      for (let m = minMidi; m <= maxMidi; m++) {
+        if (isBlackKey(m)) {
+          const prevWhite = keyGeometry[m - 1];
+          if (prevWhite) {
+            const bw = whiteKeyWidth * 0.64;
+            keyGeometry[m] = {
+              x: prevWhite.x + whiteKeyWidth - bw / 2,
+              w: bw,
+              isBlack: true
+            };
+          }
+        }
+      }
+
+      const pressedKeysMap = new Map();
+      const lyricsToDraw = [];
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, activeBannerH, width, fallingAreaHeight);
+      ctx.clip();
+
+      ctx.strokeStyle = "rgba(109, 76, 65, 0.16)";
+      ctx.lineWidth = 1;
+      whiteKeys.forEach((m) => {
+        if (m % 12 === 0) {
+          const kx = keyGeometry[m].x;
+          ctx.beginPath();
+          ctx.moveTo(kx, activeBannerH);
+          ctx.lineTo(kx, hitLineY);
+          ctx.stroke();
+        }
+      });
+
+      const visibleQuarters = 6;
+      const pixelsPerQuarter = (fallingAreaHeight / visibleQuarters) * noteHeightScale;
+
+      if (songData) {
+        ctx.strokeStyle = "rgba(109, 76, 65, 0.22)";
+        ctx.lineWidth = 1.5;
+        songData.measuresInfo.forEach((m) => {
+          const dy = hitLineY - (m.startQuarter - currentBeat) * pixelsPerQuarter;
+          if (dy >= activeBannerH && dy <= hitLineY) {
+            ctx.beginPath();
+            ctx.moveTo(0, dy);
+            ctx.lineTo(width, dy);
+            ctx.stroke();
+
+            ctx.fillStyle = "rgba(109, 76, 65, 0.65)";
+            ctx.font = "600 12px Lexend";
+            ctx.textAlign = "left";
+            const firstM = songData.measuresInfo[0];
+            const hasPickup = firstM && firstM.durationQuarter < (songData.beats * 4) / songData.beatType - 0.1;
+            const mNum = hasPickup ? m.index : m.index + 1;
+            ctx.fillText(mNum === 0 ? "Nhịp lấy đà" : `Ô ${mNum}`, 6, dy - 3);
+          }
+        });
+      }
+
+      activeNotes.forEach((n) => {
+        if (handMode === "rh" && n.hand === "lh") return;
+        if (handMode === "lh" && n.hand === "rh") return;
+
+        const geom = keyGeometry[n.midi];
+        if (!geom) return;
+
+        const noteBottomY = hitLineY - (n.startQuarter - currentBeat) * pixelsPerQuarter;
+        const noteHeight = Math.max(20, n.durationQuarter * pixelsPerQuarter - 3);
+        const noteTopY = noteBottomY - noteHeight;
+
+        if (!isCountingIn && currentBeat >= n.startQuarter && currentBeat <= n.startQuarter + n.durationQuarter) {
+          pressedKeysMap.set(n.midi, n.hand);
+        }
+
+        if (noteBottomY < activeBannerH || noteTopY > hitLineY) return;
+
+        const barColor = n.hand === "rh" ? "#1F7A68" : "#D97724";
+        const borderColor = n.hand === "rh" ? "#114B3E" : "#9E500F";
+
+        const pad = geom.isBlack ? 1 : 2;
+        const bx = geom.x + pad;
+        const bw = geom.w - pad * 2;
+        const clampedTop = Math.max(activeBannerH, noteTopY);
+        const clampedBottom = Math.min(hitLineY, noteBottomY);
+        const clampedH = Math.max(0, clampedBottom - clampedTop);
+
+        if (clampedH > 2) {
+          ctx.fillStyle = barColor;
+          ctx.strokeStyle = borderColor;
+          ctx.lineWidth = 1.5;
+
+          ctx.beginPath();
+          ctx.roundRect(bx, clampedTop, bw, clampedH, 5);
+          ctx.fill();
+          ctx.stroke();
+
+          if (clampedH >= 14) {
+            ctx.fillStyle = "#FFFDF9";
+            ctx.font = "700 12px Lexend";
+            ctx.textAlign = "center";
+            const label = getNoteLabel(n.midi);
+            ctx.fillText(label, bx + bw / 2, clampedBottom - 4);
+          }
+
+          const showLyricOnFalling = showLyricMode === "both" || showLyricMode === "falling";
+          if (showLyricOnFalling && n.lyricGroup) {
+            const grp = n.lyricGroup;
+            const minGeom = keyGeometry[grp.minMidi] || geom;
+            const maxGeom = keyGeometry[grp.maxMidi] || geom;
+
+            lyricsToDraw.push({
+              text: grp.lyric,
+              leftEdgeX: minGeom.x + 2,
+              rightEdgeX: maxGeom.x + maxGeom.w - 2,
+              bottomY: clampedBottom,
+              side: grp.side
+            });
+          }
+        }
+      });
+
+      lyricsToDraw.forEach((item) => {
+        ctx.font = `700 ${LYRIC_FONT_SIZE}px Lexend`;
+        ctx.textAlign = "left";
+        const textWidth = ctx.measureText(item.text).width;
+        const boxWidth = textWidth + 8;
+        const boxHeight = LYRIC_FONT_SIZE + 6;
+
+        const boxY = item.bottomY - boxHeight;
+        let boxX = item.rightEdgeX + 4;
+
+        if (boxX + boxWidth > width - 4) {
+          boxX = item.leftEdgeX - boxWidth - 4;
+        }
+
+        ctx.fillStyle = `rgba(253, 249, 241, ${lyricBgOpacity})`;
+        ctx.strokeStyle = `rgba(141, 78, 42, ${Math.min(1, lyricBgOpacity + 0.2)})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 4);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = `rgba(62, 39, 35, ${lyricTextOpacity})`;
+        ctx.textBaseline = "middle";
+        ctx.fillText(item.text, boxX + 4, boxY + boxHeight / 2 + 0.5);
+        ctx.textBaseline = "alphabetic";
+      });
+
+      ctx.restore();
+
+      if (showSheetStaff) {
+        drawScrollingSheetStaff(width, activeBannerH);
+      }
+
+      ctx.fillStyle = "#5D4037";
+      ctx.fillRect(0, hitLineY - 3, width, 4);
+
+      whiteKeys.forEach((m) => {
+        const g = keyGeometry[m];
+        const activeHand = pressedKeysMap.get(m);
+
+        if (activeHand === "rh") {
+          ctx.fillStyle = "#4DB6AC";
+        } else if (activeHand === "lh") {
+          ctx.fillStyle = "#FFB74D";
+        } else if (m === 60) {
+          ctx.fillStyle = "#1EFF00"; // Tô màu vàng đậm cho phím Đô4 (Middle C)
+        } else {
+          ctx.fillStyle = "#FFFDF9";
+        }
+
+        ctx.strokeStyle = "#8D6E63";
+        ctx.lineWidth = 1;
+        ctx.fillRect(g.x, hitLineY, g.w, keyboardHeight);
+        ctx.strokeRect(g.x, hitLineY, g.w, keyboardHeight);
+
+        ctx.fillStyle = activeHand ? "#212121" : (m === 60 ? "#3E2723" : "#5D4037");
+        ctx.font = m % 12 === 0 ? "700 12px Lexend" : "500 11px Lexend";
+        ctx.textAlign = "center";
+        const octaveNum = Math.floor(m / 12) - 1;
+        const noteText = m % 12 === 0 ? `${getNoteLabel(m)}${octaveNum}` : getNoteLabel(m);
+        ctx.fillText(noteText, g.x + g.w / 2, hitLineY + keyboardHeight - 3);
+      });
+
+      for (let m = minMidi; m <= maxMidi; m++) {
+        if (isBlackKey(m)) {
+          const g = keyGeometry[m];
+          if (!g) continue;
+          const activeHand = pressedKeysMap.get(m);
+
+          if (activeHand === "rh") {
+            ctx.fillStyle = "#00897B";
+          } else if (activeHand === "lh") {
+            ctx.fillStyle = "#F57C00";
+          } else {
+            ctx.fillStyle = "#3E2723";
+          }
+
+          const bh = keyboardHeight * 0.6;
+          ctx.fillRect(g.x, hitLineY, g.w, bh);
+          ctx.strokeStyle = "#271815";
+          ctx.strokeRect(g.x, hitLineY, g.w, bh);
+        }
+      }
+
+      requestAnimationFrame(drawSynthesiaStage);
+    }
+
+    /********************************************************************
+     * 11. SỰ KIỆN NÚT BẤM, FULLSCREEN & CÀI ĐẶT
+     ********************************************************************/
+    function updateTempoDisplay() {
+      document.getElementById("tempoDisplay").textContent = `${currentBpm} BPM`;
+    }
+
+    function updateTransposeDisplay() {
+      const el = document.getElementById("transposeDisplay");
+      if (!songData) {
+        el.textContent = "Tone: C";
+        return;
+      }
+      const origTonicPc = FIFTHS_TO_TONIC_PC[String(songData.fifths)] ?? 0;
+      const currentTonicPc = ((origTonicPc + transposeSemitones) % 12 + 12) % 12;
+      const currentToneName = SEMITONE_TO_LETTER[currentTonicPc];
+
+      if (transposeSemitones === 0) {
+        el.textContent = `Tone: ${currentToneName} (Gốc)`;
+      } else {
+        const sign = transposeSemitones > 0 ? `+${transposeSemitones}` : `${transposeSemitones}`;
+        el.textContent = `Tone: ${currentToneName} (${sign})`;
+      }
+    }
+
+    document.getElementById("songSelect").addEventListener("change", (e) => {
+      loadSelectedSong(e.target.value);
+      e.target.blur();
+    });
+
+    document.getElementById("btnOpenFolder").addEventListener("click", () => {
+      document.getElementById("fileInput").click();
+    });
+
+    document.getElementById("fileInput").addEventListener("change", (e) => {
+      const files = Array.from(e.target.files).filter((f) => /\.(mxl|xml|musicxml)$/i.test(f.name));
+      if (files.length === 0) return;
+      files.forEach((f) => localFilesMap.set(f.name, f));
+      const currentOptions = Array.from(document.getElementById("songSelect").options).map((o) => o.value);
+      const allNames = Array.from(new Set([...currentOptions, ...localFilesMap.keys()]));
+      populateSongSelect(allNames);
+      document.getElementById("songSelect").value = files[0].name;
+      loadSelectedSong(files[0].name);
+    });
+
+    document.getElementById("btnPlayPause").addEventListener("click", () => {
+      togglePlayPause();
+    });
+
+    // Chức năng Full màn hình và tự khóa ngang (nếu trình duyệt hỗ trợ)
+    document.getElementById("btnFullscreen").addEventListener("click", () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+        if (screen.orientation && screen.orientation.lock) {
+          screen.orientation.lock("landscape").catch(() => {});
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    });
+
+    window.addEventListener("keydown", (e) => {
+      if (e.code === "Space") {
+        const activeTag = document.activeElement ? document.activeElement.tagName : "";
+        if (activeTag === "INPUT" || activeTag === "TEXTAREA") return;
+        e.preventDefault();
+        togglePlayPause();
+      }
+    });
+
+    document.getElementById("btnRestart").addEventListener("click", () => {
+      resetCursorToFirstSelectedPhrase();
+    });
+
+    document.getElementById("btnTempoDown").addEventListener("click", () => {
+      currentBpm = Math.max(30, currentBpm - 5);
+      updateTempoDisplay();
+    });
+
+    document.getElementById("btnTempoUp").addEventListener("click", () => {
+      currentBpm = Math.min(220, currentBpm + 5);
+      updateTempoDisplay();
+    });
+
+    document.getElementById("patternSelect").addEventListener("change", (e) => {
+      currentPatternId = e.target.value;
+      rebuildActiveNotes();
+      e.target.blur();
+    });
+
+    document.getElementById("btnTransposeDown").addEventListener("click", () => {
+      transposeSemitones = Math.max(-12, transposeSemitones - 1);
+      updateTransposeDisplay();
+      rebuildActiveNotes();
+    });
+
+    document.getElementById("btnTransposeUp").addEventListener("click", () => {
+      transposeSemitones = Math.min(12, transposeSemitones + 1);
+      updateTransposeDisplay();
+      rebuildActiveNotes();
+    });
+
+    document.getElementById("btnAutoWhiteKeys").addEventListener("click", () => {
+      if (!songData) return;
+      const tonicPc = FIFTHS_TO_TONIC_PC[String(songData.fifths)] ?? 0;
+      let shift = -tonicPc;
+      if (shift < -6) shift += 12;
+      if (shift > 6) shift -= 12;
+      transposeSemitones = shift;
+      updateTransposeDisplay();
+      rebuildActiveNotes();
+    });
+
+    // Quản lý Modal Chọn câu tập & nhập nhanh kiểu PC
+    const phrasesModal = document.getElementById("phrasesModal");
+    document.getElementById("btnOpenPhrases").addEventListener("click", () => {
+      phrasesModal.classList.add("open");
+    });
+    document.getElementById("btnClosePhrases").addEventListener("click", () => {
+      phrasesModal.classList.remove("open");
+    });
+    phrasesModal.addEventListener("click", (e) => {
+      if (e.target === phrasesModal) phrasesModal.classList.remove("open");
+    });
+
+    const phraseRangeInput = document.getElementById("phraseRangeInput");
+    phraseRangeInput.addEventListener("input", (e) => {
+      selectedPhraseIndices = parsePhraseRangeInput(e.target.value);
+      renderPhraseModalGrid();
+      updatePhraseButtonLabel();
+      resetCursorToFirstSelectedPhrase();
+    });
+
+    document.getElementById("btnModalSelectAll").addEventListener("click", () => {
+      phrases.forEach((_, idx) => selectedPhraseIndices.add(idx));
+      renderPhraseModalGrid();
+      updatePhraseButtonLabel();
+      updatePhraseRangeInputFromSelection();
+      resetCursorToFirstSelectedPhrase();
+    });
+    document.getElementById("btnModalClear").addEventListener("click", () => {
+      selectedPhraseIndices.clear();
+      renderPhraseModalGrid();
+      updatePhraseButtonLabel();
+      updatePhraseRangeInputFromSelection();
+      resetCursorToFirstSelectedPhrase();
+    });
+
+    // Quản lý Modal Cài đặt (Bấm ra ngoài để đóng)
+    const settingsModal = document.getElementById("settingsModal");
+    document.getElementById("btnOpenSettings").addEventListener("click", () => {
+      settingsModal.classList.add("open");
+    });
+    document.getElementById("btnCloseSettings").addEventListener("click", () => {
+      settingsModal.classList.remove("open");
+    });
+    settingsModal.addEventListener("click", (e) => {
+      if (e.target === settingsModal) settingsModal.classList.remove("open");
+    });
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        phrasesModal.classList.remove("open");
+        settingsModal.classList.remove("open");
+      }
+    });
+
+    const showSheetStaffSelect = document.getElementById("showSheetStaffSelect");
+    showSheetStaffSelect.value = showSheetStaff ? "on" : "off";
+    showSheetStaffSelect.addEventListener("change", (e) => {
+      showSheetStaff = e.target.value === "on";
+      localStorage.setItem("piano_showSheetStaff", e.target.value);
+    });
+
+    const sheetClefModeSelect = document.getElementById("sheetClefModeSelect");
+    sheetClefModeSelect.value = sheetClefMode;
+    sheetClefModeSelect.addEventListener("change", (e) => {
+      sheetClefMode = e.target.value;
+      localStorage.setItem("piano_sheetClefMode", sheetClefMode);
+    });
+
+    const showSheetLyricSelect = document.getElementById("showSheetLyricSelect");
+    showSheetLyricSelect.value = showLyricMode;
+    showSheetLyricSelect.addEventListener("change", (e) => {
+      showLyricMode = e.target.value;
+      localStorage.setItem("piano_showLyricMode", showLyricMode);
+    });
+
+    // Thanh trượt điều chỉnh độ cao Sheet khi 1 khóa
+    const staffHeight1Range = document.getElementById("staffHeight1Range");
+    const staffHeight1Display = document.getElementById("staffHeight1Display");
+    staffHeight1Range.value = staffBannerHeight1;
+    staffHeight1Display.textContent = `${staffBannerHeight1} px`;
+    staffHeight1Range.addEventListener("input", (e) => {
+      staffBannerHeight1 = parseInt(e.target.value, 10);
+      staffHeight1Display.textContent = `${staffBannerHeight1} px`;
+      localStorage.setItem("piano_staffHeight1", String(staffBannerHeight1));
+    });
+
+    // Thanh trượt điều chỉnh độ cao Sheet khi 2 khóa
+    const staffHeight2Range = document.getElementById("staffHeight2Range");
+    const staffHeight2Display = document.getElementById("staffHeight2Display");
+    staffHeight2Range.value = staffBannerHeight2;
+    staffHeight2Display.textContent = `${staffBannerHeight2} px`;
+    staffHeight2Range.addEventListener("input", (e) => {
+      staffBannerHeight2 = parseInt(e.target.value, 10);
+      staffHeight2Display.textContent = `${staffBannerHeight2} px`;
+      localStorage.setItem("piano_staffHeight2", String(staffBannerHeight2));
+    });
+
+    const noteHeightRange = document.getElementById("noteHeightRange");
+    const noteHeightDisplay = document.getElementById("noteHeightDisplay");
+    noteHeightRange.value = noteHeightScale;
+    noteHeightDisplay.textContent = `${Math.round(noteHeightScale * 100)}%`;
+    noteHeightRange.addEventListener("input", (e) => {
+      noteHeightScale = parseFloat(e.target.value);
+      noteHeightDisplay.textContent = `${Math.round(noteHeightScale * 100)}%`;
+      localStorage.setItem("piano_noteHeightScale", String(noteHeightScale));
+    });
+
+    const lyricBgOpacityRange = document.getElementById("lyricBgOpacityRange");
+    const lyricBgOpacityDisplay = document.getElementById("lyricBgOpacityDisplay");
+    lyricBgOpacityRange.value = lyricBgOpacity;
+    lyricBgOpacityDisplay.textContent = `${Math.round(lyricBgOpacity * 100)}%`;
+    lyricBgOpacityRange.addEventListener("input", (e) => {
+      lyricBgOpacity = parseFloat(e.target.value);
+      lyricBgOpacityDisplay.textContent = `${Math.round(lyricBgOpacity * 100)}%`;
+      localStorage.setItem("piano_lyricBgOpacity", String(lyricBgOpacity));
+    });
+
+    const lyricTextOpacityRange = document.getElementById("lyricTextOpacityRange");
+    const lyricTextOpacityDisplay = document.getElementById("lyricTextOpacityDisplay");
+    lyricTextOpacityRange.value = lyricTextOpacity;
+    lyricTextOpacityDisplay.textContent = `${Math.round(lyricTextOpacity * 100)}%`;
+    lyricTextOpacityRange.addEventListener("input", (e) => {
+      lyricTextOpacity = parseFloat(e.target.value);
+      lyricTextOpacityDisplay.textContent = `${Math.round(lyricTextOpacity * 100)}%`;
+      localStorage.setItem("piano_lyricTextOpacity", String(lyricTextOpacity));
+    });
+
+    const handModeSelect = document.getElementById("handModeSelect");
+    handModeSelect.value = handMode;
+    handModeSelect.addEventListener("change", (e) => {
+      handMode = e.target.value;
+      localStorage.setItem("piano_handMode", handMode);
+    });
+
+    const countInInput = document.getElementById("countInInput");
+    countInInput.value = countInBeatsSetting;
+    function updateCountInSetting(val) {
+      countInBeatsSetting = Math.max(0, Math.min(16, parseInt(val || "0", 10)));
+      countInInput.value = countInBeatsSetting;
+      localStorage.setItem("piano_countIn", String(countInBeatsSetting));
+    }
+    countInInput.addEventListener("change", (e) => updateCountInSetting(e.target.value));
+    document.getElementById("btnCountInMinus").addEventListener("click", () => updateCountInSetting(countInBeatsSetting - 1));
+    document.getElementById("btnCountInPlus").addEventListener("click", () => updateCountInSetting(countInBeatsSetting + 1));
+
+    const noteLabelSelect = document.getElementById("noteLabelSelect");
+    noteLabelSelect.value = noteLabelMode;
+    noteLabelSelect.addEventListener("change", (e) => {
+      noteLabelMode = e.target.value;
+      localStorage.setItem("piano_noteLabel", noteLabelMode);
+    });
+
+    document.getElementById("btnAddPattern").addEventListener("click", () => {
+      const rawNotes = document.getElementById("newPatternNotes").value.trim();
+      const rawMeters = document.getElementById("newPatternMeters").value.trim();
+
+      const parsedSteps = parsePatternSteps(rawNotes);
+
+      if (parsedSteps.length < 2) {
+        alert("Vui lòng nhập ít nhất 2 phách hợp lệ (ví dụ: 1 - (3 5) - 1 - (3 5) hoặc 1-5-8-5)!");
+        return;
+      }
+
+      const meters = rawMeters
+        ? rawMeters.split(/[\s,]+/).filter(Boolean)
+        : [];
+
+      const newId = "custom_" + Date.now();
+      const displaySeq = formatPatternSteps(parsedSteps);
+      patterns.push({
+        id: newId,
+        name: `Tự tạo: ${displaySeq}`,
+        notes: parsedSteps,
+        suggestedMeters: meters,
+        hint: meters.length > 0 ? `Gợi ý: Nhịp ${meters.join(", ")}` : "Tự chọn"
+      });
+
+      currentPatternId = newId;
+      document.getElementById("newPatternNotes").value = "";
+      document.getElementById("newPatternMeters").value = "";
+      savePatternsToLocal();
+    });
+
+    // Đăng ký Service Worker cho PWA
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        Promise.resolve().catch(() => {});
+      });
+    }
+
+    (async function bootstrap() {
+      await loadPatterns();
+      await initSongList();
+      requestAnimationFrame(drawSynthesiaStage);
+    })();
+  </script>
+</body>
+</html>

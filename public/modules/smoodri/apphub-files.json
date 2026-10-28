@@ -1,0 +1,10 @@
+{
+  "files": [
+    "README.md",
+    "app.js",
+    "index.html",
+    "manifest.json",
+    "style.css",
+    "sw.js"
+  ]
+}

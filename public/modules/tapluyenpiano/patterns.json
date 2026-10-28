@@ -1,0 +1,86 @@
+[
+  {
+    "id": "p1",
+    "name": "Mẫu 1: 1 – 3 – 5 – 3",
+    "notes": [1, 3, 5, 3],
+    "suggestedMeters": ["2/4", "4/4"],
+    "hint": "Gợi ý: Nhịp 2/4, 4/4 (Đệm êm dịu, phổ biến nhất)"
+  },
+  {
+    "id": "p2",
+    "name": "Mẫu 2: 1 – 5 – 3 – 5",
+    "notes": [1, 5, 3, 5],
+    "suggestedMeters": ["2/4", "4/4"],
+    "hint": "Gợi ý: Nhịp 2/4, 4/4 (Kiểu Alberti Bass cổ điển)"
+  },
+  {
+    "id": "p3",
+    "name": "Mẫu 3: 1 – 5 – 8 – 5",
+    "notes": [1, 5, 8, 5],
+    "suggestedMeters": ["2/4", "4/4"],
+    "hint": "Gợi ý: Nhịp 2/4, 4/4 (Âm vang rộng,BALLAD nhẹ nhàng)"
+  },
+  {
+    "id": "p4",
+    "name": "Mẫu 4: 1 – 3 – 5 – 8",
+    "notes": [1, 3, 5, 8],
+    "suggestedMeters": ["2/4", "4/4"],
+    "hint": "Gợi ý: Nhịp 2/4, 4/4 (Rải đi lên tạo đà cao trào)"
+  },
+  {
+    "id": "p5",
+    "name": "Mẫu 5: 1 – 5 – 8 – 3",
+    "notes": [1, 5, 8, 3],
+    "suggestedMeters": ["2/4", "4/4"],
+    "hint": "Gợi ý: Nhịp 2/4, 4/4 (Quãng rộng, dày tiếng)"
+  },
+  {
+    "id": "p6",
+    "name": "Mẫu 6: 1 – 3 – 8 – 5",
+    "notes": [1, 3, 8, 5],
+    "suggestedMeters": ["2/4", "4/4"],
+    "hint": "Gợi ý: Nhịp 2/4, 4/4 (Đảo chiều mềm mại)"
+  },
+  {
+    "id": "p7",
+    "name": "Mẫu 7: 1 – 5 – 3 – 8",
+    "notes": [1, 5, 3, 8],
+    "suggestedMeters": ["2/4", "4/4"],
+    "hint": "Gợi ý: Nhịp 2/4, 4/4 (Nhấn quãng 8 ở phách cuối)"
+  },
+  {
+    "id": "p8",
+    "name": "Mẫu 8: 1 – 5 – 8 – 3 – 5",
+    "notes": [1, 5, 8, 3, 5],
+    "suggestedMeters": ["4/4", "3/4"],
+    "hint": "Gợi ý: Nhịp 4/4 (Lấy 4 nốt đầu) hoặc Nhịp 5/4"
+  },
+  {
+    "id": "p9",
+    "name": "Mẫu 9: 1 – 3 – 5 – 8 – 5 – 3",
+    "notes": [1, 3, 5, 8, 5, 3],
+    "suggestedMeters": ["3/4", "6/8"],
+    "hint": "Gợi ý: Nhịp 3/4, 6/8 (Chuẩn Valse / Slow Rock)"
+  },
+  {
+    "id": "p10",
+    "name": "Mẫu 10: 1 – 5 – 3 – 5 – 8 – 5",
+    "notes": [1, 5, 3, 5, 8, 5],
+    "suggestedMeters": ["3/4", "6/8"],
+    "hint": "Gợi ý: Nhịp 3/4, 6/8 (Rải đều, trầm ấm)"
+  },
+  {
+    "id": "p11",
+    "name": "Mẫu 11: 1 – (3 5) – 1 – (3 5)",
+    "notes": [1, [3, 5], 1, [3, 5]],
+    "suggestedMeters": ["2/4", "4/4"],
+    "hint": "Gợi ý: Nhịp 2/4, 4/4 (Đệm chập hành khúc / Polka)"
+  },
+  {
+    "id": "p12",
+    "name": "Mẫu 12: 1 – (3 5) – (3 5)",
+    "notes": [1, [3, 5], [3, 5]],
+    "suggestedMeters": ["3/4"],
+    "hint": "Gợi ý: Nhịp 3/4 (Đệm chập Valse Bùm - Chách - Chách)"
+  }
+]

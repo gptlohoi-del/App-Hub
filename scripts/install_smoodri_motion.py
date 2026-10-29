@@ -36,7 +36,7 @@ root = tree.getroot()
 application = root.find('application')
 if application is None:
     raise SystemExit('ERROR: AndroidManifest has no application')
-for permission in ('FOREGROUND_SERVICE', 'FOREGROUND_SERVICE_SPECIAL_USE', 'POST_NOTIFICATIONS', 'WAKE_LOCK'):
+for permission in ('FOREGROUND_SERVICE', 'FOREGROUND_SERVICE_SPECIAL_USE', 'POST_NOTIFICATIONS', 'WAKE_LOCK', 'ACCESS_FINE_LOCATION', 'ACCESS_COARSE_LOCATION'):
     name = 'android.permission.' + permission
     if not any(p.get(NS+'name') == name for p in root.findall('uses-permission')):
         ET.SubElement(root, 'uses-permission', {NS+'name': name})

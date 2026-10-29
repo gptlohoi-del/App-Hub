@@ -393,7 +393,7 @@ function openModule(mod) {
   const frame = el('iframe', {
     className: 'module-frame', title: mod.name,
     src: `${BASE}modules/${encodeURIComponent(mod.id)}/${encodeURIComponent(mod.entry || 'index.html')}`,
-    allow: 'accelerometer; gyroscope; autoplay; fullscreen; microphone',
+    allow: 'accelerometer; gyroscope; geolocation; autoplay; fullscreen; microphone',
   });
   view.append(bar, frame);
   if (mod.id === 'smoodri' && hasNativePiP) view.append(makePipSummary());

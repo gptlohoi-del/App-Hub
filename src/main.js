@@ -446,6 +446,13 @@ async function getRemoteManifest() {
 
 async function checkUpdate(manual = false) {
   if (updating || active) return;
+
+  if (!navigator.onLine) {
+    lastVisibleError = null;
+    otaProgress = null;
+    setStage('idle', 'Đang offline · Các ứng dụng vẫn sử dụng bình thường');
+    return;
+  }
   if (!Capacitor.isNativePlatform()) {
     if (manual) setStage('idle', 'Kiểm tra OTA được thực hiện bên trong APK Android.');
     return;
@@ -506,6 +513,11 @@ async function checkUpdate(manual = false) {
   } catch (err) {
     const stage = otaStage;
     const code = errorCode(err);
+        if (code === 'NETWORK' && !navigator.onLine) {
+      lastVisibleError = null;
+      setStage('idle', 'Đang offline · Các ứng dụng vẫn sử dụng bình thường');
+      return;
+    }
     lastVisibleError = { stage, message: shortError(err), code };
     logEvent('error', stage, shortError(err), code);
     setStage(stage, `Không cập nhật được · ${STAGE_NAME[stage] || stage} · ${code}. Nhấn “Xem nhật ký” để biết chi tiết.`, 'error');

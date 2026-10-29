@@ -84,7 +84,7 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
-    @Override protected void onDestroy() {
+    @Override public void onDestroy() {
         // Do not stop merely because the user presses Home; auto PiP needs it.
         // A deliberate Activity finish/close ends the measuring session.
         if (isFinishing() && !isChangingConfigurations()) {

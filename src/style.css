@@ -77,3 +77,18 @@
 .pip-button { margin-left:auto; }
 #native-motion-view {max-width:100%; flex:1 0 100%;}
 .module-view.pip-mode .native-motion-panel {display:none !important;}
+
+/* User-configurable PiP layout. Actual PiP window bounds are controlled by Android. */
+.module-view.pip-mode .pip-summary {background:var(--pip-custom-bg,#0d1a2d);color:var(--pip-custom-text,#fff);
+  gap:clamp(1px,1.6vh,6px);padding:clamp(3px,3vw,10px);overflow:hidden;}
+.module-view.pip-mode .pip-summary [hidden] {display:none!important;}
+.pip-summary .pip-main-row {display:flex;justify-content:space-between;align-items:center;gap:7px;min-height:0;}
+.pip-summary .pip-main-metric {display:flex;flex-direction:column;gap:1px;min-width:0;}
+.pip-summary .pip-main-metric small {font-size:9px;opacity:.8;white-space:nowrap;}
+.pip-summary .pip-main-metric strong {font-size:var(--pip-custom-score-size,23px);font-weight:var(--pip-custom-weight,700);
+  line-height:1.05;color:inherit;white-space:nowrap;}
+.pip-summary .pip-main-metric em {font-style:normal;font-size:9px;margin-left:3px;opacity:.8;}
+.pip-summary .pip-gps-line {font-size:9px;opacity:.84;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pip-summary .pip-data {grid-template-columns:repeat(4,minmax(0,1fr));}
+.pip-summary .pip-data span {color:inherit;min-width:0;font-weight:var(--pip-custom-weight,700)}
+.pip-summary .pip-data b {color:inherit;font-weight:inherit;}

@@ -17,6 +17,47 @@ let nativeMotionError = '';
 let lastAutoPipSetting = null;
 let pipIsActive = false;
 let pipSummaryTimer = null;
+const PIP_FIELDS = ['score','speed','ga','phanh','cua','xoc','gps'];
+const PIP_DEFAULTS = {
+  pipRatio:'16:9', pipFontSize:23, pipFontWeight:700,
+  pipBgColor:'#0d1a2d', pipTextColor:'#ffffff',
+  pipVisible:['score','speed','ga','phanh','cua','xoc']
+};
+const PIP_SETTINGS_KEY = 'apphub.smoodri.pip.settings.v1';
+let pipPrefs = {...PIP_DEFAULTS, pipVisible:[...PIP_DEFAULTS.pipVisible]};
+let pipWebSpeed = {speed:null, gpsStatus:'', receivedAt:0};
+try {
+  const cached = JSON.parse(localStorage.getItem(PIP_SETTINGS_KEY) || 'null');
+  if (cached && typeof cached === 'object') pipPrefs = sanitizedPipPrefs(cached);
+} catch (_) { /* keep default profile */ }
+function sanitizedPipPrefs(s) {
+  const hex = v => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v);
+  const visible = Array.isArray(s.pipVisible)
+    ? [...new Set(s.pipVisible.filter(v=>PIP_FIELDS.includes(v)))] : [...PIP_DEFAULTS.pipVisible];
+  return {
+    pipRatio:['16:9','4:3','1:1'].includes(s.pipRatio) ? s.pipRatio : PIP_DEFAULTS.pipRatio,
+    pipFontSize: Number.isFinite(+s.pipFontSize) ? Math.min(32,Math.max(16,Math.round(+s.pipFontSize))) : PIP_DEFAULTS.pipFontSize,
+    pipFontWeight:[500,600,700,800].includes(+s.pipFontWeight) ? +s.pipFontWeight : PIP_DEFAULTS.pipFontWeight,
+    pipBgColor:hex(s.pipBgColor) ? s.pipBgColor : PIP_DEFAULTS.pipBgColor,
+    pipTextColor:hex(s.pipTextColor) ? s.pipTextColor : PIP_DEFAULTS.pipTextColor,
+    pipVisible:visible.length ? visible : [...PIP_DEFAULTS.pipVisible]
+  };
+}
+async function requestNativePipRatio() {
+  if (!hasNativePiP) return;
+  const [width,height] = pipPrefs.pipRatio.split(':').map(Number);
+  // Older APKs do not have this method; HTML styling still works by OTA.
+  return AppHubPiP.setAspectRatio({width,height}).catch(error=>{
+    console.info('APK does not support PiP ratio changes yet:',safeNativeError(error));
+  });
+}
+function applyPipPrefs(next) {
+  pipPrefs = sanitizedPipPrefs(next);
+  try { localStorage.setItem(PIP_SETTINGS_KEY,JSON.stringify(pipPrefs)); } catch(_) {}
+  requestNativePipRatio();
+  refreshPipSummary();
+}
+
 
 function safeNativeError(error) {
   return String(error?.message || error || 'Không xác định').slice(0, 180);
@@ -102,6 +143,16 @@ window.addEventListener('message', (event) => {
   const type = event.data?.type;
   if (type === 'APPHUB_SMOODRI_START_NATIVE') void startNativeMotion(event.data.comfort);
   else if (type === 'APPHUB_SMOODRI_STOP_NATIVE') void stopNativeMotion();
+  else if (type === 'APPHUB_SMOODRI_PIP_SETTINGS') applyPipPrefs(event.data.settings || {});
+  else if (type === 'APPHUB_SMOODRI_SPEED') {
+    const value=event.data.speed;
+    pipWebSpeed={
+      speed: Number.isFinite(value) && value >= 0 && value <= 250 ? Math.round(value) : null,
+      gpsStatus: String(event.data.gpsStatus || '').slice(0,65),
+      receivedAt:Date.now()
+    };
+    refreshPipSummary();
+  }
 });
 
 let modules = [];
@@ -286,7 +337,7 @@ function createHome() {
     statusBar,
     sync,
     createDiagnosticPanel(),
-    el('p', { className: 'build-marker' }, 'Giao diện: PiP-FGS-v2 · 28/10/2026')
+    el('p', { className: 'build-marker' }, 'Giao diện: PiP tùy chỉnh · 30/10/2026')
   );
   const heading = el('div', { className: 'section-heading' });
   heading.append(el('h2', {}, 'Tính năng'), el('span', { className: 'count' }, `${modules.length} ứng dụng`));
@@ -318,15 +369,30 @@ function pipText(id, value) {
 }
 function refreshPipSummary() {
   if (!pipIsActive || active?.id !== 'smoodri') return;
-  const data = nativeMotionStatus;
-  const ready = Boolean(data?.running);
-  pipText('pip-status', ready ? (data.status || 'ĐANG ĐO') : 'ĐÃ DỪNG');
-  pipText('pip-score', ready ? `≈${data.score ?? '--'}` : '--');
-  pipText('pip-ga', ready ? `${data.ga ?? 0}%` : '--');
-  pipText('pip-brake', ready ? `${data.phanh ?? 0}%` : '--');
-  pipText('pip-turn', ready ? `${data.cua ?? 0}%` : '--');
-  pipText('pip-bump', ready ? `${data.xoc ?? 0}%` : '--');
+  const summary=document.querySelector('.pip-summary');
+  if (!summary) return;
+  summary.style.setProperty('--pip-custom-bg',pipPrefs.pipBgColor);
+  summary.style.setProperty('--pip-custom-text',pipPrefs.pipTextColor);
+  summary.style.setProperty('--pip-custom-score-size',pipPrefs.pipFontSize+'px');
+  summary.style.setProperty('--pip-custom-weight',String(pipPrefs.pipFontWeight));
+  const data=nativeMotionStatus;
+  const ready=Boolean(data?.running);
+  pipText('pip-status',ready ? (data.status || 'ĐANG ĐO') : 'ĐÃ DỪNG');
+  pipText('pip-score',ready ? `≈${data.score ?? '--'}` : '--');
+  pipText('pip-ga',ready ? `${data.ga ?? 0}%` : '--');
+  pipText('pip-brake',ready ? `${data.phanh ?? 0}%` : '--');
+  pipText('pip-turn',ready ? `${data.cua ?? 0}%` : '--');
+  pipText('pip-bump',ready ? `${data.xoc ?? 0}%` : '--');
+  // Hide speed when the WebView stops delivering fresh GPS readings.
+  const fresh = pipWebSpeed.receivedAt > 0 && Date.now()-pipWebSpeed.receivedAt < 3200;
+  const valid = fresh && pipWebSpeed.speed !== null && ready;
+  pipText('pip-speed',valid ? String(pipWebSpeed.speed) : '--');
+  pipText('pip-gps',fresh && ready ? pipWebSpeed.gpsStatus : 'GPS CHƯA CÓ DỮ LIỆU MỚI');
+  summary.querySelectorAll('[data-pip-field]').forEach(node=>{
+    node.hidden = !pipPrefs.pipVisible.includes(node.dataset.pipField);
+  });
 }
+
 function setPipMode(enabled) {
   const view = document.querySelector('.module-view');
   pipIsActive = Boolean(enabled && active?.id === 'smoodri' && view);
@@ -339,18 +405,23 @@ function setPipMode(enabled) {
   }
 }
 function makePipSummary() {
-  const summary = el('div', { className: 'pip-summary', 'aria-label': 'SmooDri thu nhỏ' });
+  const summary=el('div',{className:'pip-summary', 'aria-label':'SmooDri thu nhỏ'});
   summary.innerHTML = `
     <div class="pip-head"><strong>🚘 SmooDri</strong><span id="pip-status">ĐANG ĐO</span></div>
-    <div class="pip-score-row"><span>ĐIỂM THAM KHẢO</span><strong id="pip-score">--</strong></div>
+    <div class="pip-main-row">
+      <div class="pip-main-metric" data-pip-field="score"><small>ĐIỂM ÊM ÁI</small><strong id="pip-score">--</strong></div>
+      <div class="pip-main-metric" data-pip-field="speed"><small>TỐC ĐỘ GPS</small><strong><span id="pip-speed">--</span><em>km/h</em></strong></div>
+    </div>
     <div class="pip-data">
-      <span>GA <b id="pip-ga">--</b></span>
-      <span>PHANH <b id="pip-brake">--</b></span>
-      <span>CUA <b id="pip-turn">--</b></span>
-      <span>Ổ GÀ <b id="pip-bump">--</b></span>
-    </div>`;
+      <span data-pip-field="ga">GA <b id="pip-ga">--</b></span>
+      <span data-pip-field="phanh">PHANH <b id="pip-brake">--</b></span>
+      <span data-pip-field="cua">CUA <b id="pip-turn">--</b></span>
+      <span data-pip-field="xoc">Ổ GÀ <b id="pip-bump">--</b></span>
+    </div>
+    <div class="pip-gps-line" data-pip-field="gps" id="pip-gps">GPS --</div>`;
   return summary;
 }
+
 window.addEventListener('apphub:native-pip', (event) => {
   setPipMode(Boolean(event.detail?.active));
 });
@@ -367,6 +438,7 @@ async function enterSmoodriPiP() {
   try {
     const { supported } = await AppHubPiP.isSupported();
     if (!supported) throw new Error('Thiết bị không hỗ trợ PiP hoặc PiP bị tắt trong cài đặt Android.');
+    await requestNativePipRatio();
     setPipMode(true); // Prepare compact screen before native transition.
     await AppHubPiP.enter();
   } catch (error) {
@@ -446,7 +518,6 @@ async function getRemoteManifest() {
 
 async function checkUpdate(manual = false) {
   if (updating || active) return;
-
   if (!navigator.onLine) {
     lastVisibleError = null;
     otaProgress = null;
@@ -558,6 +629,7 @@ async function boot() {
     modules = Array.isArray(data.modules) ? data.modules : [];
   } catch (error) { console.error('Module registry:', error); }
   createHome();
+  requestNativePipRatio();
   // Chỉ xác nhận phiên bản Web đã sẵn sàng sau khi giao diện được khởi tạo.
   // Không chờ kết nối Internet; gọi trước bước kiểm tra OTA.
   if (Capacitor.isNativePlatform()) {

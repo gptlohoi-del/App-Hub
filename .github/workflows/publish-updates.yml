@@ -43,6 +43,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 scripts/collect_modules.py
+        - name: Verify shared files for KinhTest2 and TungKinh3
+        run: |
+          test -f public/modules/kinhtest2/index.html
+          test -f public/modules/tungkinh3/index.html
+          python3 public/modules/tungkinh3/tests/verify_apphub_shared.py public/modules
       - name: Build bundle
         run: npm run build
       - name: Check differences, create ZIP/manifest

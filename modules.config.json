@@ -20,6 +20,14 @@
       "icon": "🎧",
       "description": "Nghe kinh, phụ đề và luyện đọc"
     },
+    
+    {
+      "repo": "tungkinh3",
+      "name": "Tụng Kinh 3",
+      "icon": "📖",
+      "description": "Luyện từng câu, lặp A-B và lặp danh sách câu"
+    },
+
     {
       "repo": "linktong",
       "name": "Link tổng hợp",

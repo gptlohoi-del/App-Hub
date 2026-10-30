@@ -285,5 +285,13 @@ public final class SmooDriMotionService extends Service implements SensorEventLi
         super.onDestroy();
     }
 
+    @Override public void onTaskRemoved(Intent rootIntent) {
+        // Removing App Hub (including a dismissed PiP task) must not leave
+        // a battery-consuming foreground sensor service running invisibly.
+        endSession();
+        stopSelf();
+        super.onTaskRemoved(rootIntent);
+    }
+
     @Override public IBinder onBind(Intent intent) { return null; }
 }

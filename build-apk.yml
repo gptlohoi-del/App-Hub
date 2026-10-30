@@ -47,6 +47,20 @@ jobs:
       - name: Install SmooDri Foreground Service and Picture-in-Picture
         run: python3 scripts/install_smoodri_motion.py
 
+      - name: Verify Android GPS permissions and iframe policy
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          root = ET.parse('android/app/src/main/AndroidManifest.xml').getroot()
+          ns = '{http://schemas.android.com/apk/res/android}'
+          permissions = {e.get(ns + 'name') for e in root.findall('uses-permission')}
+          for name in ('android.permission.ACCESS_FINE_LOCATION', 'android.permission.ACCESS_COARSE_LOCATION'):
+              assert name in permissions, f'Missing {name}'
+          assert 'geolocation;' in Path('src/main.js').read_text(encoding='utf-8')
+          print('OK: GPS permissions and iframe geolocation policy configured')
+          PY
+
       - name: Set Android versionCode and versionName
         run: |
           python3 - <<'PY'

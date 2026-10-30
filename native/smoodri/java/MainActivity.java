@@ -18,6 +18,8 @@ import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
     private boolean autoPiP = false;
+    private int pipWidth = 16;
+    private int pipHeight = 9;
     private static final String ACTION_END_SESSION = "vn.gptlohoi.apphub.action.END_SMOODRI";
 
     // A single native action closes the PiP window AND releases its sensor service.
@@ -42,7 +44,7 @@ public class MainActivity extends BridgeActivity {
 
     private PictureInPictureParams buildPiPParams(boolean enableAuto) {
         PictureInPictureParams.Builder builder = new PictureInPictureParams.Builder()
-                .setAspectRatio(new Rational(16, 9));
+                .setAspectRatio(new Rational(pipWidth, pipHeight));
         RemoteAction end = makeEndSessionAction();
         builder.setActions(Collections.singletonList(end));
         // Android 13+: the normal PiP X button runs the same cleanup action.
@@ -92,6 +94,16 @@ public class MainActivity extends BridgeActivity {
             catch (Exception ignored) { }
         }
         super.onDestroy();
+    }
+
+    public void setAppHubPiPAspectRatio(int width, int height) {
+        if (!((width == 16 && height == 9) || (width == 4 && height == 3) || (width == 1 && height == 1)))
+            throw new IllegalArgumentException("Unsupported PiP aspect ratio");
+        pipWidth = width;
+        pipHeight = height;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            setPictureInPictureParams(buildPiPParams(autoPiP));
+        }
     }
 
     public void setAppHubAutoPiP(boolean enabled) {

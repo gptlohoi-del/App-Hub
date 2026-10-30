@@ -34,6 +34,23 @@ public class AppHubPiPPlugin extends Plugin {
         });
     }
 
+    @PluginMethod public void setAspectRatio(PluginCall call) {
+        if (!supported()) { call.reject("PiP unavailable", "PIP_UNAVAILABLE"); return; }
+        Integer width = call.getInt("width");
+        Integer height = call.getInt("height");
+        if (width == null || height == null || !(
+            (width == 16 && height == 9) || (width == 4 && height == 3) || (width == 1 && height == 1))) {
+            call.reject("Only 16:9, 4:3, 1:1 are supported", "PIP_BAD_RATIO");
+            return;
+        }
+        getActivity().runOnUiThread(() -> {
+            try {
+                ((MainActivity)getActivity()).setAppHubPiPAspectRatio(width, height);
+                call.resolve();
+            } catch (Exception e) { call.reject("Could not update PiP ratio: " + e.getMessage()); }
+        });
+    }
+
     @PluginMethod public void enter(PluginCall call) {
         if (!supported()) { call.reject("PiP unavailable", "PIP_UNAVAILABLE"); return; }
         getActivity().runOnUiThread(() -> {

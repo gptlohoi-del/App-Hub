@@ -39,17 +39,18 @@ jobs:
           node-version: '22'
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+      
       - name: Collect GitHub PWA modules
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 scripts/collect_modules.py
+
       - name: Verify shared files for KinhTest2 and TungKinh3
-        run: |
-          test -f public/modules/kinhtest2/index.html
-          test -f public/modules/tungkinh3/index.html
-          python3 public/modules/tungkinh3/tests/verify_apphub_shared.py public/modules
+        run: python3 scripts/verify_apphub_shared.py public/modules
+
       - name: Build bundle
         run: npm run build
+
       - name: Check differences, create ZIP/manifest
         id: package
         run: python3 scripts/publish_update.py

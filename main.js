@@ -337,7 +337,7 @@ function createHome() {
     statusBar,
     sync,
     createDiagnosticPanel(),
-    el('p', { className: 'build-marker' }, 'Giao diện: PiP-FGS-v2 · 28/10/2026')
+    el('p', { className: 'build-marker' }, 'Giao diện: PiP tùy chỉnh · 30/10/2026')
   );
   const heading = el('div', { className: 'section-heading' });
   heading.append(el('h2', {}, 'Tính năng'), el('span', { className: 'count' }, `${modules.length} ứng dụng`));
@@ -517,13 +517,13 @@ async function getRemoteManifest() {
 }
 
 async function checkUpdate(manual = false) {
-    if (!navigator.onLine) {
+  if (updating || active) return;
+  if (!navigator.onLine) {
     lastVisibleError = null;
     otaProgress = null;
     setStage('idle', 'Đang offline · Các ứng dụng vẫn sử dụng bình thường');
     return;
   }
-  if (updating || active) return;
   if (!Capacitor.isNativePlatform()) {
     if (manual) setStage('idle', 'Kiểm tra OTA được thực hiện bên trong APK Android.');
     return;

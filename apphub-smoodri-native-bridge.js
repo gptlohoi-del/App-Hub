@@ -46,6 +46,10 @@
       window.parent.postMessage({type:'APPHUB_SMOODRI_SPEED',speed,gpsStatus:status},window.location.origin);
     }
     window.addEventListener('smoodri:pip-config-changed',sendPipSettings);
+    // Also react if a future SmooDri release saves settings without dispatching the custom event.
+    window.addEventListener('storage', event => {
+      if (event.key === 'smoodri_cfg_v8') sendPipSettings();
+    });
     sendPipSettings();
     sendWebSpeed();
     setInterval(sendWebSpeed,1000);

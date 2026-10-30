@@ -175,6 +175,14 @@ def transform_module_html(dest, repo, bundled_repos):
             ? 'https://gptlohoi-del.github.io/tungkinh/' + window.location.search
             : window.location.href;''')
     if repo == 'smoodri':
+        # Prevent silent loss of PiP settings in APK/OTA when the remote SmooDri
+        # repository is still on an older commit than the user's updated source.
+        # A failed build is safer than publishing an apparently successful downgrade.
+        if 'id="selPipRatio"' not in text or 'id="pipSettingsPreview"' not in text:
+            raise RuntimeError('SmooDri GitHub version is missing PiP settings in index.html. Upload the latest SmooDri repository to GitHub, then rerun App Hub Actions.')
+        app_source = dest / 'app.js'
+        if not app_source.is_file() or 'function bindPipSettings()' not in app_source.read_text(encoding='utf-8'):
+            raise RuntimeError('SmooDri GitHub app.js is missing PiP settings logic. Upload latest SmooDri app.js before publishing an App Hub update.')
         # The ORIGINAL SmooDri repo is unchanged. Patch its offline copy every build.
         # Disable the PWA Service Worker only in the APK copy; OTA manages its files.
         app_js = dest / 'app.js'
